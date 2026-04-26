@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FinOS - Controladoria Pessoal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  
+  <div id="authPanel" class="auth-wrapper">
+    <div class="auth-container">
+      <div class="auth-header">
+        <h1>FinOS</h1>
+        <p>Controladoria Financeira Pessoal</p>
+      </div>
+      
+      <div class="auth-tabs">
+        <button id="tabLogin" class="tab active" onclick="switchAuthTab('login')">Entrar</button>
+        <button id="tabSignup" class="tab" onclick="switchAuthTab('signup')">Cadastrar</button>
+      </div>
+
+      <form id="loginForm" class="auth-form active">
+        <label>Usuário ou e-mail<input name="usernameOrEmail" autocomplete="username" required></label>
+        <label>Senha<input name="password" type="password" autocomplete="current-password" required></label>
+        <button type="submit" class="btn-primary">Acessar Sistema</button>
+      </form>
+
+      <form id="signupForm" class="auth-form">
+        <div class="row">
+          <label>Nome<input name="firstName" required></label>
+          <label>Sobrenome<input name="lastName" required></label>
+        </div>
+        <label>E-mail<input name="email" type="email" required></label>
+        <label>Usuário<input name="username" minlength="3" required></label>
+        <label>Senha<input name="password" type="password" minlength="6" required></label>
+        <button type="submit" class="btn-primary">Criar Conta</button>
+      </form>
+    </div>
+  </div>
+
+  <div id="dashboard" class="dashboard-wrapper hidden">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h2>FinOS</h2>
+        <span class="badge">ERP Pessoal</span>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="#overview" class="nav-item active">Visão Geral</a>
+        <a href="#ledger" class="nav-item">Ledger & Lançamentos</a>
+        <a href="#accounts" class="nav-item">Contas e Categorias</a>
+        <a href="#loans" class="nav-item">Empréstimos / Dívidas</a>
+        <a href="#planning" class="nav-item">Planejamento (Metas e Orçamentos)</a>
+        <a href="#import" class="nav-item">Importação CSV</a>
+        <a href="#bi" class="nav-item">Dados BI (Analytics)</a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-info">
+          <span id="sessionStatus">Usuário</span>
+        </div>
+        <button id="logoutButton" class="btn-secondary btn-sm">Sair</button>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <header class="top-header">
+        <h1>Visão Geral</h1>
+        <div class="header-actions">
+          <span class="balance-label">Saldo Consolidado:</span>
+          <strong id="totalBalance" class="balance-value">R$ 0,00</strong>
+        </div>
+      </header>
+
+      <div class="content-scroll">
+        <!-- Overview Section -->
+        <section id="section-overview" class="view-section active">
+          <div class="metrics-grid">
+            <div class="metric-card">
+              <span class="metric-label">Patrimônio Líquido</span>
+              <strong id="netWorthValue" class="metric-value">R$ 0,00</strong>
+            </div>
+            <div class="metric-card">
+              <span class="metric-label">Total em Ativos</span>
+              <strong id="totalAssetsValue" class="metric-value text-success">R$ 0,00</strong>
+            </div>
+            <div class="metric-card">
+              <span class="metric-label">Total em Dívidas</span>
+              <strong id="totalDebtValue" class="metric-value text-danger">R$ 0,00</strong>
+            </div>
+          </div>
+          
+          <div class="dashboard-panels">
+            <div class="panel">
+              <div class="panel-header">
+                <h3>Despesas por Categoria</h3>
+              </div>
+              <div class="panel-body">
+                <div id="categorySummary" class="category-summary-list"></div>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="panel-header">
+                <h3>Lançamentos Recentes</h3>
+              </div>
+              <div class="panel-body table-responsive">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Data</th>
+                      <th>Descrição</th>
+                      <th>Categoria</th>
+                      <th class="text-right">Valor</th>
+                    </tr>
+                  </thead>
+                  <tbody id="recentTransactionsTable"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Ledger Section -->
+        <section id="section-ledger" class="view-section hidden">
+          <div class="panel">
+            <div class="panel-header">
+              <h3>Novo Lançamento</h3>
+            </div>
+            <div class="panel-body">
+              <form id="transactionForm" class="grid-form">
+                <input name="id" type="hidden">
+                <label>Conta<select name="accountId" required></select></label>
+                <label>Conta Destino (Transf.)<select name="destinationAccountId"></select></label>
+                <label>Tipo
+                  <select name="type" required>
+                    <option value="EXPENSE">Despesa</option>
+                    <option value="INCOME">Receita</option>
+                    <option value="TRANSFER">Transferência</option>
+                    <option value="ADJUSTMENT">Ajuste</option>
+                  </select>
+                </label>
+                <label>Categoria<select name="categoryId"></select></label>
+                <label>Data<input name="transactionDate" type="date" required></label>
+                <label>Valor<input name="amount" type="number" min="0.01" step="0.01" required></label>
+                <label>Contraparte (Opcional)<select name="counterpartyId"></select></label>
+                <label>Recorrência
+                  <select name="recurrenceFrequency">
+                    <option value="NONE">Única</option>
+                    <option value="MONTHLY">Mensal</option>
+                    <option value="WEEKLY">Semanal</option>
+                    <option value="YEARLY">Anual</option>
+                  </select>
+                </label>
+                <label>Status
+                  <select name="status">
+                    <option value="POSTED">Realizado (Pago)</option>
+                    <option value="PENDING">Agendado (Pendente)</option>
+                  </select>
+                </label>
+                <label class="col-span-2">Descrição<input name="description" required></label>
+                <label class="col-span-2">Metadata (JSON Opcional)<input name="metadata" placeholder='Ex: {"tags": ["viagem"]}'></label>
+                <div class="form-actions col-span-2">
+                  <button type="submit" class="btn-primary">Salvar Lançamento</button>
+                  <button id="cancelEditButton" type="button" class="btn-secondary hidden">Cancelar</button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <div class="panel mt-4">
+            <div class="panel-header flex-between">
+              <h3>Livro Razão (Ledger)</h3>
+              <div class="search-box">
+                <input id="searchInput" placeholder="Buscar lançamentos...">
+                <button id="refreshButton" class="btn-secondary">Atualizar</button>
+              </div>
+            </div>
+            <div class="panel-body table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Data</th>
+                    <th>Descrição</th>
+                    <th>Conta</th>
+                    <th>Categoria</th>
+                    <th>Tipo</th>
+                    <th class="text-right">Valor</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="transactionsTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- Accounts & Categories Section -->
+        <section id="section-accounts" class="view-section hidden">
+          <div class="dashboard-panels">
+            <div class="panel">
+              <div class="panel-header">
+                <h3>Contas</h3>
+              </div>
+              <div class="panel-body">
+                <form id="accountForm" class="stacked-form mb-4">
+                  <input name="id" type="hidden">
+                  <label>Nome<input name="name" required></label>
+                  <label>Tipo
+                    <select name="type" required>
+                      <option value="CHECKING">Conta corrente</option>
+                      <option value="SAVINGS">Poupança</option>
+                      <option value="CREDIT_CARD">Cartão de crédito</option>
+                      <option value="INVESTMENT">Investimento</option>
+                      <option value="OTHER">Outra</option>
+                    </select>
+                  </label>
+                  <label>Saldo inicial<input name="initialBalance" type="number" step="0.01" value="0"></label>
+                  <button type="submit" class="btn-primary">Salvar Conta</button>
+                </form>
+                <div id="accountList" class="item-list"></div>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-header">
+                <h3>Categorias</h3>
+              </div>
+              <div class="panel-body">
+                <form id="categoryForm" class="stacked-form mb-4">
+                  <input name="id" type="hidden">
+                  <label>Nome<input name="name" required></label>
+                  <label>Tipo
+                    <select name="type" required>
+                      <option value="EXPENSE">Despesa</option>
+                      <option value="INCOME">Receita</option>
+                      <option value="TRANSFER">Transferência</option>
+                    </select>
+                  </label>
+                  <button type="submit" class="btn-primary">Salvar Categoria</button>
+                </form>
+                <div id="categoryList" class="item-list"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Loans Section -->
+        <section id="section-loans" class="view-section hidden">
+          <div class="panel">
+            <div class="panel-header">
+              <h3>Novo Empréstimo / Dívida</h3>
+            </div>
+            <div class="panel-body">
+              <form id="loanForm" class="grid-form">
+                <input name="id" type="hidden">
+                <label>Nome / Título<input name="name" required></label>
+                <label>Tipo
+                  <select name="loanType" required>
+                    <option value="INSTALLMENT">Parcelado (Com Prazo)</option>
+                    <option value="OPEN_ENDED">Aberto (Sem Data Fixa)</option>
+                  </select>
+                </label>
+                <label>Valor Principal<input name="principalAmount" type="number" step="0.01" required></label>
+                <label>Data Inicial<input name="startDate" type="date" required></label>
+                <label>Data Final (Opcional)<input name="endDate" type="date"></label>
+                <label>Taxa de Juros Mensal % (Opcional)<input name="interestRate" type="number" step="0.01"></label>
+                <div class="form-actions col-span-2">
+                  <button type="submit" class="btn-primary">Registrar Dívida</button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <div class="panel mt-4">
+            <div class="panel-header flex-between">
+              <h3>Dívidas Ativas</h3>
+            </div>
+            <div class="panel-body table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Nome</th>
+                    <th>Tipo</th>
+                    <th>Data Inicial</th>
+                    <th class="text-right">Saldo Devedor</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="loansTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- Planning Section -->
+        <section id="section-planning" class="view-section hidden">
+          
+          <!-- Metas -->
+          <div class="panel">
+            <div class="panel-header">
+              <h3>Minhas Metas</h3>
+            </div>
+            <div class="panel-body">
+              <form id="goalForm" class="grid-form">
+                <label>Nome do Objetivo<input name="name" required></label>
+                <label>Valor Alvo<input name="targetAmount" type="number" step="0.01" required></label>
+                <label>Data Alvo (Opcional)<input name="targetDate" type="date"></label>
+                <label>Cor<input name="color" type="color" value="#4CAF50"></label>
+                <div class="form-actions col-span-2">
+                  <button type="submit" class="btn-primary">Criar Meta</button>
+                </div>
+              </form>
+              <div class="metrics-grid mt-4" id="goalsList"></div>
+            </div>
+          </div>
+
+          <!-- Orçamentos -->
+          <div class="panel mt-4">
+            <div class="panel-header flex-between">
+              <h3>Orçamentos Mensais</h3>
+            </div>
+            <div class="panel-body">
+              <form id="budgetForm" class="grid-form">
+                <label>Categoria<select name="categoryId" required></select></label>
+                <label>Limite Mensal Máximo<input name="amountLimit" type="number" step="0.01" required></label>
+                <div class="form-actions col-span-2">
+                  <button type="submit" class="btn-primary">Definir Orçamento</button>
+                </div>
+              </form>
+              
+              <div class="table-responsive mt-4">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Categoria</th>
+                      <th class="text-right">Limite</th>
+                      <th class="text-center">Progresso (%)</th>
+                    </tr>
+                  </thead>
+                  <tbody id="budgetsTable"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Import Section -->
+        <section id="section-import" class="view-section hidden">
+          <div class="panel">
+            <div class="panel-header">
+              <h3>Importação de CSV Bancário</h3>
+            </div>
+            <div class="panel-body">
+              <form id="importForm" class="stacked-form">
+                <label>Conta de Destino<select name="accountId" required></select></label>
+                <label>Arquivo CSV<input name="file" type="file" accept=".csv" required></label>
+                <button type="submit" class="btn-primary">Enviar Arquivo</button>
+              </form>
+              <div id="importList" class="item-list mt-4"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- BI Section -->
+        <section id="section-bi" class="view-section hidden">
+          <div class="panel">
+            <div class="panel-header">
+              <h3>Dados para BI / Data Science</h3>
+            </div>
+            <div class="panel-body">
+              <p class="bi-description">Este sistema foi arquitetado como uma fundação de dados (Data Foundation). Você pode conectar ferramentas como <strong>Power BI</strong>, <strong>Metabase</strong> ou scripts em <strong>Python/Pandas</strong> diretamente nas views otimizadas do banco de dados.</p>
+              
+              <div class="bi-views-grid">
+                <div class="bi-view-card">
+                  <h4>v_fact_transactions</h4>
+                  <p>Tabela fato desnormalizada contendo todos os lançamentos com joins pré-computados (Conta, Categoria, Contraparte). Ideal para drill-down e análise preditiva.</p>
+                  <code>GET /api/reports/fact-transactions</code>
+                </div>
+                <div class="bi-view-card">
+                  <h4>v_monthly_cashflow</h4>
+                  <p>Tabela agregada contendo o fluxo de caixa líquido por mês. Transferências e ajustes são ignorados para refletir apenas o operacional.</p>
+                  <code>GET /api/reports/cash-flow/monthly</code>
+                </div>
+              </div>
+
+              <div class="mt-4">
+                <h4>Preview da Tabela Fato</h4>
+                <div class="table-responsive">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>Transaction_ID</th>
+                        <th>Year_Month</th>
+                        <th>Type</th>
+                        <th>Account_Name</th>
+                        <th>Category_Name</th>
+                        <th class="text-right">Amount</th>
+                        <th>Metadata (JSON)</th>
+                      </tr>
+                    </thead>
+                    <tbody id="biPreviewTable"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+  <script src="/app.js"></script>
+  <script>
+    function switchAuthTab(tab) {
+      document.querySelectorAll('.auth-tabs .tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
+      if (tab === 'login') {
+        document.getElementById('tabLogin').classList.add('active');
+        document.getElementById('loginForm').classList.add('active');
+      } else {
+        document.getElementById('tabSignup').classList.add('active');
+        document.getElementById('signupForm').classList.add('active');
+      }
+    }
+
+    // Nav Switcher
+    document.querySelectorAll('.nav-item').forEach(item => {
+      item.addEventListener('click', (e) => {
+        e.preventDefault();
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        item.classList.add('active');
+        
+        const targetId = 'section-' + item.getAttribute('href').substring(1);
+        document.querySelectorAll('.view-section').forEach(s => s.classList.add('hidden'));
+        document.getElementById(targetId).classList.remove('hidden');
+        document.querySelector('.top-header h1').textContent = item.textContent;
+      });
+    });
+  </script>
+</body>
+</html>
