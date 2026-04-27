@@ -173,6 +173,7 @@ public class ImportService {
                     batch.getId(),
                     null,
                     null,
+                    null,
                     null
             ));
             record.setTransaction(transaction);

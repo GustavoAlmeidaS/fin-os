@@ -62,4 +62,7 @@ public class Account extends BaseEntity {
 
     @Column(columnDefinition = "TEXT")
     private String notes;
+
+    @jakarta.persistence.OneToMany(mappedBy = "account", cascade = jakarta.persistence.CascadeType.ALL, orphanRemoval = true)
+    private java.util.List<Card> cards = new java.util.ArrayList<>();
 }

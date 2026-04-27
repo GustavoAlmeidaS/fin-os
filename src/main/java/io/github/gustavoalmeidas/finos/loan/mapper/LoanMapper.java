@@ -23,4 +23,16 @@ public class LoanMapper {
                 loan.getNotes()
         );
     }
+
+    public io.github.gustavoalmeidas.finos.loan.dto.LoanMovementResponse toLoanMovementResponse(io.github.gustavoalmeidas.finos.loan.domain.LoanMovement movement) {
+        return new io.github.gustavoalmeidas.finos.loan.dto.LoanMovementResponse(
+                movement.getId(),
+                movement.getLoan().getId(),
+                movement.getTransaction() != null ? movement.getTransaction().getId() : null,
+                movement.getType(),
+                movement.getAmount(),
+                movement.getMovementDate(),
+                movement.getDescription()
+        );
+    }
 }

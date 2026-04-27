@@ -37,4 +37,9 @@ public class PlanningController {
     public ApiResponse<CategoryBudgetResponse> createOrUpdateBudget(@RequestBody CreateCategoryBudgetRequest request) {
         return ApiResponse.ok(planningService.createOrUpdateBudget(request));
     }
+
+    @PatchMapping("/goals/{id}/deposit")
+    public ApiResponse<GoalResponse> depositToGoal(@PathVariable Long id, @jakarta.validation.Valid @RequestBody io.github.gustavoalmeidas.finos.planning.dto.DepositGoalRequest request) {
+        return ApiResponse.ok("Depósito registrado com sucesso.", planningService.depositToGoal(id, request.amount()));
+    }
 }

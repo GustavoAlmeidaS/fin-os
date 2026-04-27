@@ -9,4 +9,5 @@ import java.util.Optional;
 
 public interface TransactionRepository extends JpaRepository<Transaction, Long>, JpaSpecificationExecutor<Transaction> {
     Optional<Transaction> findByIdAndUser(Long id, User user);
+    boolean existsByIdempotencyKey(String idempotencyKey);
 }

@@ -33,3 +33,7 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Local config (contains DB credentials) ###
+application-local.properties
+**/application-local.properties

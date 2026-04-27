@@ -2,11 +2,11 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>FinOS - Controladoria Pessoal</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <title>FinOS - ERP Financeiro Pessoal</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
@@ -14,7 +14,7 @@
   <div id="authPanel" class="auth-wrapper">
     <div class="auth-container">
       <div class="auth-header">
-        <h1>FinOS</h1>
+        <h1 class="brand-title">FinOS</h1>
         <p>Controladoria Financeira Pessoal</p>
       </div>
       
@@ -24,19 +24,40 @@
       </div>
 
       <form id="loginForm" class="auth-form active">
-        <label>Usuário ou e-mail<input name="usernameOrEmail" autocomplete="username" required></label>
-        <label>Senha<input name="password" type="password" autocomplete="current-password" required></label>
+        <div class="input-group">
+          <input name="usernameOrEmail" id="loginUser" placeholder=" " required autocomplete="username">
+          <label for="loginUser">Usuário ou e-mail</label>
+        </div>
+        <div class="input-group">
+          <input name="password" id="loginPass" type="password" placeholder=" " required autocomplete="current-password">
+          <label for="loginPass">Senha</label>
+        </div>
         <button type="submit" class="btn-primary">Acessar Sistema</button>
       </form>
 
       <form id="signupForm" class="auth-form">
-        <div class="row">
-          <label>Nome<input name="firstName" required></label>
-          <label>Sobrenome<input name="lastName" required></label>
+        <div class="grid-form">
+          <div class="input-group">
+            <input name="firstName" id="regFirst" placeholder=" " required>
+            <label for="regFirst">Nome</label>
+          </div>
+          <div class="input-group">
+            <input name="lastName" id="regLast" placeholder=" " required>
+            <label for="regLast">Sobrenome</label>
+          </div>
         </div>
-        <label>E-mail<input name="email" type="email" required></label>
-        <label>Usuário<input name="username" minlength="3" required></label>
-        <label>Senha<input name="password" type="password" minlength="6" required></label>
+        <div class="input-group">
+          <input name="email" id="regEmail" type="email" placeholder=" " required>
+          <label for="regEmail">E-mail</label>
+        </div>
+        <div class="input-group">
+          <input name="username" id="regUser" minlength="3" placeholder=" " required>
+          <label for="regUser">Usuário</label>
+        </div>
+        <div class="input-group">
+          <input name="password" id="regPass" type="password" minlength="6" placeholder=" " required>
+          <label for="regPass">Senha</label>
+        </div>
         <button type="submit" class="btn-primary">Criar Conta</button>
       </form>
     </div>
@@ -44,142 +65,268 @@
 
   <div id="dashboard" class="dashboard-wrapper hidden">
     <!-- Sidebar -->
-    <aside class="sidebar">
+    <aside class="sidebar" id="sidebar">
       <div class="sidebar-header">
-        <h2>FinOS</h2>
-        <span class="badge">ERP Pessoal</span>
+        <h2 class="sidebar-brand">FinOS</h2>
+        <span class="badge">Finanças Pessoais</span>
       </div>
       <nav class="sidebar-nav">
-        <a href="#overview" class="nav-item active">Visão Geral</a>
-        <a href="#ledger" class="nav-item">Ledger & Lançamentos</a>
-        <a href="#accounts" class="nav-item">Contas e Categorias</a>
-        <a href="#loans" class="nav-item">Empréstimos / Dívidas</a>
-        <a href="#planning" class="nav-item">Planejamento (Metas e Orçamentos)</a>
-        <a href="#import" class="nav-item">Importação CSV</a>
-        <a href="#bi" class="nav-item">Dados BI (Analytics)</a>
+        <a href="#overview" class="nav-item active">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+          Visão Geral
+        </a>
+        <a href="#ledger" class="nav-item">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+          Receitas e Despesas
+        </a>
+        <a href="#accounts" class="nav-item">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
+          Minhas Contas
+        </a>
+        <a href="#counterparties" class="nav-item">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+          Pessoas e Etiquetas
+        </a>
+        <a href="#loans" class="nav-item">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+          Empréstimos / Dívidas
+        </a>
+        <a href="#planning" class="nav-item">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+          Metas e Orçamento
+        </a>
+        <a href="#import" class="nav-item">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+          Importar Extrato
+        </a>
+        <a href="#settings" class="nav-item">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+          Configurações
+        </a>
+        <a href="#bi" class="nav-item">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+          Relatórios Avançados
+        </a>
+        <a href="#ai" class="nav-item ai-nav-item" style="color: var(--primary);">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
+          Assistente IA
+        </a>
       </nav>
       <div class="sidebar-footer">
-        <div class="user-info">
-          <span id="sessionStatus">Usuário</span>
+        <button id="btnStartTutorial" class="btn-tutorial" title="Iniciar Tutorial Interativo">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:18px; height:18px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg>
+          <span>Tutorial do Sistema</span>
+        </button>
+        <div class="user-profile">
+          <div class="avatar" id="userAvatar">U</div>
+          <div>
+            <div style="font-weight: 500; font-size: 0.9rem;" id="sessionStatus">Usuário</div>
+            <div style="font-size: 0.75rem; color: var(--text-muted);">Membro</div>
+          </div>
         </div>
-        <button id="logoutButton" class="btn-secondary btn-sm">Sair</button>
+        <button id="logoutButton" class="btn-secondary btn-sm" title="Sair">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width: 16px; height: 16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+        </button>
       </div>
     </aside>
 
     <!-- Main Content -->
-    <main class="main-content">
+    <main class="main-content" id="mainContent">
       <header class="top-header">
-        <h1>Visão Geral</h1>
+        <div style="display: flex; align-items: center; gap: 1rem;">
+          <button class="mobile-toggle" onclick="toggleSidebar()">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="24" height="24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+          </button>
+          <h1 id="pageTitle">Visão Geral</h1>
+        </div>
         <div class="header-actions">
-          <span class="balance-label">Saldo Consolidado:</span>
-          <strong id="totalBalance" class="balance-value">R$ 0,00</strong>
+          <div class="balance-card">
+            <span class="balance-label">Saldo Total:</span>
+            <strong id="totalBalance" class="balance-value">R$ 0,00</strong>
+          </div>
         </div>
       </header>
 
       <div class="content-scroll">
+        
         <!-- Overview Section -->
         <section id="section-overview" class="view-section active">
+          <div style="margin-bottom: 2rem;">
+            <h2 class="font-display" style="font-size: 1.8rem;" id="greetingText">Olá, bem-vindo de volta!</h2>
+            <p style="color: var(--text-muted);">Veja o resumo da sua vida financeira em um só lugar.</p>
+          </div>
+
           <div class="metrics-grid">
             <div class="metric-card">
+              <svg class="metric-icon" width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
               <span class="metric-label">Patrimônio Líquido</span>
-              <strong id="netWorthValue" class="metric-value">R$ 0,00</strong>
+              <strong id="netWorthValue" class="metric-value">0,00</strong>
             </div>
-            <div class="metric-card">
+            <div class="metric-card" style="border-top: 3px solid var(--success);">
               <span class="metric-label">Total em Ativos</span>
-              <strong id="totalAssetsValue" class="metric-value text-success">R$ 0,00</strong>
+              <strong id="totalAssetsValue" class="metric-value text-success">0,00</strong>
             </div>
-            <div class="metric-card">
+            <div class="metric-card" style="border-top: 3px solid var(--danger);">
               <span class="metric-label">Total em Dívidas</span>
-              <strong id="totalDebtValue" class="metric-value text-danger">R$ 0,00</strong>
+              <strong id="totalDebtValue" class="metric-value text-danger">0,00</strong>
             </div>
           </div>
           
+          <div class="metrics-grid" style="grid-template-columns: 1fr 1fr; margin-bottom: 2rem;">
+             <div class="metric-card" style="padding: 1rem 1.5rem;">
+                <span class="metric-label">Receita Mês Atual</span>
+                <strong id="monthIncomeValue" class="metric-value text-success" style="font-size: 1.5rem">0,00</strong>
+             </div>
+             <div class="metric-card" style="padding: 1rem 1.5rem;">
+                <span class="metric-label">Despesa Mês Atual</span>
+                <strong id="monthExpenseValue" class="metric-value text-danger" style="font-size: 1.5rem">0,00</strong>
+             </div>
+          </div>
+
           <div class="dashboard-panels">
+            <div class="panel">
+              <div class="panel-header">
+                <h3>Fluxo de Caixa Mensal (6 meses)</h3>
+              </div>
+              <div class="panel-body">
+                <div id="cashflowChart" class="css-bar-chart">
+                  <!-- JS will populate -->
+                </div>
+              </div>
+            </div>
             <div class="panel">
               <div class="panel-header">
                 <h3>Despesas por Categoria</h3>
               </div>
               <div class="panel-body">
+                <div id="categoryDonut" class="css-donut-chart"></div>
                 <div id="categorySummary" class="category-summary-list"></div>
               </div>
             </div>
-            <div class="panel">
-              <div class="panel-header">
-                <h3>Lançamentos Recentes</h3>
-              </div>
-              <div class="panel-body table-responsive">
-                <table class="data-table">
-                  <thead>
-                    <tr>
-                      <th>Data</th>
-                      <th>Descrição</th>
-                      <th>Categoria</th>
-                      <th class="text-right">Valor</th>
-                    </tr>
-                  </thead>
-                  <tbody id="recentTransactionsTable"></tbody>
-                </table>
-              </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <h3>Lançamentos Recentes</h3>
+            </div>
+            <div class="panel-body table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Data</th>
+                    <th>Descrição</th>
+                    <th>Categoria</th>
+                    <th class="text-right">Valor</th>
+                  </tr>
+                </thead>
+                <tbody id="recentTransactionsTable"></tbody>
+              </table>
             </div>
           </div>
         </section>
 
         <!-- Ledger Section -->
         <section id="section-ledger" class="view-section hidden">
-          <div class="panel">
+          <div class="panel mb-4">
             <div class="panel-header">
-              <h3>Novo Lançamento</h3>
+              <h3 id="txFormTitle">Registrar Movimentação</h3>
             </div>
             <div class="panel-body">
               <form id="transactionForm" class="grid-form">
                 <input name="id" type="hidden">
-                <label>Conta<select name="accountId" required></select></label>
-                <label>Conta Destino (Transf.)<select name="destinationAccountId"></select></label>
-                <label>Tipo
-                  <select name="type" required>
+                <div class="input-group">
+                  <select name="accountId" id="txAccount" required></select>
+                  <label for="txAccount">Conta</label>
+                </div>
+                <div class="input-group">
+                  <select name="destinationAccountId" id="txDest"></select>
+                  <label for="txDest">Conta Destino (Transferência)</label>
+                </div>
+                <div class="input-group">
+                  <select name="type" id="txType" required>
                     <option value="EXPENSE">Despesa</option>
                     <option value="INCOME">Receita</option>
                     <option value="TRANSFER">Transferência</option>
                     <option value="ADJUSTMENT">Ajuste</option>
                   </select>
-                </label>
-                <label>Categoria<select name="categoryId"></select></label>
-                <label>Data<input name="transactionDate" type="date" required></label>
-                <label>Valor<input name="amount" type="number" min="0.01" step="0.01" required></label>
-                <label>Contraparte (Opcional)<select name="counterpartyId"></select></label>
-                <label>Recorrência
-                  <select name="recurrenceFrequency">
-                    <option value="NONE">Única</option>
-                    <option value="MONTHLY">Mensal</option>
-                    <option value="WEEKLY">Semanal</option>
-                    <option value="YEARLY">Anual</option>
-                  </select>
-                </label>
-                <label>Status
-                  <select name="status">
+                  <label for="txType">Tipo</label>
+                </div>
+                <div class="input-group">
+                  <select name="categoryId" id="txCat"></select>
+                  <label for="txCat">Categoria</label>
+                </div>
+                <div class="input-group">
+                  <input name="transactionDate" id="txDate" type="date" required>
+                  <label for="txDate">Data</label>
+                </div>
+                <div class="input-group">
+                  <input name="amount" id="txAmount" type="number" min="0.01" step="0.01" required placeholder=" ">
+                  <label for="txAmount">Valor</label>
+                </div>
+                <div class="input-group">
+                  <select name="counterpartyId" id="txCounterparty"></select>
+                  <label for="txCounterparty">Pessoa/Empresa (Opcional)</label>
+                </div>
+                <div class="input-group">
+                  <select name="status" id="txStatus">
                     <option value="POSTED">Realizado (Pago)</option>
                     <option value="PENDING">Agendado (Pendente)</option>
                   </select>
-                </label>
-                <label class="col-span-2">Descrição<input name="description" required></label>
-                <label class="col-span-2">Metadata (JSON Opcional)<input name="metadata" placeholder='Ex: {"tags": ["viagem"]}'></label>
+                  <label for="txStatus">Status</label>
+                </div>
+                <div class="input-group col-span-2">
+                  <input name="description" id="txDesc" required placeholder=" ">
+                  <label for="txDesc">Descrição</label>
+                </div>
+                
                 <div class="form-actions col-span-2">
-                  <button type="submit" class="btn-primary">Salvar Lançamento</button>
-                  <button id="cancelEditButton" type="button" class="btn-secondary hidden">Cancelar</button>
+                  <button type="submit" class="btn-primary" id="btnSaveTx">Salvar</button>
+                  <button type="button" id="cancelEditButton" class="btn-secondary hidden">Cancelar Edição</button>
                 </div>
               </form>
             </div>
           </div>
 
-          <div class="panel mt-4">
-            <div class="panel-header flex-between">
-              <h3>Livro Razão (Ledger)</h3>
-              <div class="search-box">
-                <input id="searchInput" placeholder="Buscar lançamentos...">
-                <button id="refreshButton" class="btn-secondary">Atualizar</button>
+          <div class="panel">
+            <div class="panel-header" style="flex-direction: row; justify-content: space-between; align-items: center; padding: 1.25rem 1.5rem 0;">
+              <h3>Histórico de Movimentações</h3>
+              <button class="btn-secondary btn-sm" id="btnExportCsv">Exportar CSV</button>
+            </div>
+            <div class="panel-header" style="flex-direction: column; align-items: stretch; gap: 1rem; padding: 0;">
+              <div class="filter-bar">
+                <div class="input-group" style="flex:1;">
+                  <input id="searchInput" placeholder=" " autocomplete="off">
+                  <label for="searchInput">Buscar por texto...</label>
+                </div>
+                <div class="input-group" style="flex:0.5;">
+                  <input type="date" id="filterStartDate" placeholder=" ">
+                  <label for="filterStartDate">De</label>
+                </div>
+                <div class="input-group" style="flex:0.5;">
+                  <input type="date" id="filterEndDate" placeholder=" ">
+                  <label for="filterEndDate">Até</label>
+                </div>
+                <div class="input-group">
+                  <select id="filterType">
+                    <option value="">Todos os Tipos</option>
+                    <option value="EXPENSE">Despesa</option>
+                    <option value="INCOME">Receita</option>
+                    <option value="TRANSFER">Transferência</option>
+                  </select>
+                </div>
+                <div class="input-group">
+                  <select id="filterStatus">
+                    <option value="">Todos os Status</option>
+                    <option value="POSTED">Realizados</option>
+                    <option value="PENDING">Pendentes</option>
+                  </select>
+                </div>
+                <div class="input-group">
+                  <select id="filterAccount"><option value="">Todas as Contas</option></select>
+                </div>
               </div>
             </div>
-            <div class="panel-body table-responsive">
+            <div class="panel-body table-responsive" style="padding-top:0;">
               <table class="data-table">
                 <thead>
                   <tr>
@@ -189,11 +336,16 @@
                     <th>Categoria</th>
                     <th>Tipo</th>
                     <th class="text-right">Valor</th>
-                    <th></th>
+                    <th class="text-right">Ações</th>
                   </tr>
                 </thead>
                 <tbody id="transactionsTable"></tbody>
               </table>
+              <div class="pagination-controls" id="txPagination" style="display:flex; justify-content:center; gap:0.5rem; margin-top:1rem;">
+                <button id="btnPrevPage" class="btn-secondary btn-sm" disabled>Anterior</button>
+                <span id="pageIndicator" style="line-height:2rem; font-size:0.9rem; color:var(--text-muted);">Página 1 de 1</span>
+                <button id="btnNextPage" class="btn-secondary btn-sm" disabled>Próxima</button>
+              </div>
             </div>
           </div>
         </section>
@@ -203,23 +355,56 @@
           <div class="dashboard-panels">
             <div class="panel">
               <div class="panel-header">
-                <h3>Contas</h3>
+                <h3>Contas Bancárias</h3>
               </div>
               <div class="panel-body">
-                <form id="accountForm" class="stacked-form mb-4">
+                <form id="accountForm" class="grid-form mb-4">
                   <input name="id" type="hidden">
-                  <label>Nome<input name="name" required></label>
-                  <label>Tipo
-                    <select name="type" required>
+                  <div class="input-group col-span-2">
+                    <input name="name" id="accName" required placeholder=" ">
+                    <label for="accName">Nome da Conta</label>
+                  </div>
+                  <div class="input-group">
+                    <select name="type" id="accType" required>
                       <option value="CHECKING">Conta corrente</option>
                       <option value="SAVINGS">Poupança</option>
                       <option value="CREDIT_CARD">Cartão de crédito</option>
                       <option value="INVESTMENT">Investimento</option>
                       <option value="OTHER">Outra</option>
                     </select>
-                  </label>
-                  <label>Saldo inicial<input name="initialBalance" type="number" step="0.01" value="0"></label>
+                    <label for="accType">Tipo</label>
+                  </div>
+                  <div class="input-group">
+                  <input name="initialBalance" id="accInit" type="number" step="0.01" required placeholder=" ">
+                  <label for="accInit">Saldo Inicial</label>
+                </div>
+                <div class="input-group">
+                  <input name="institutionName" id="accInst" placeholder=" " list="bankList">
+                  <label for="accInst">Instituição Financeira</label>
+                  <datalist id="bankList">
+                    <option value="Nubank">
+                    <option value="Santander">
+                    <option value="Bradesco">
+                    <option value="Itaú">
+                    <option value="Banco do Brasil">
+                    <option value="Inter">
+                    <option value="Mercado Pago">
+                    <option value="C6 Bank">
+                    <option value="XP Investimentos">
+                  </datalist>
+                </div>
+                <div class="input-group">
+                  <input name="color" id="accColor" type="color" value="#3b82f6" style="padding: 0.5rem; height: 3.2rem;">
+                  <label>Cor Identificadora</label>
+                </div>
+                <div class="input-group col-span-2">
+                  <textarea name="notes" id="accNotes" placeholder=" " rows="2"></textarea>
+                  <label for="accNotes">Observações</label>
+                </div>
+                <div class="form-actions col-span-2">
                   <button type="submit" class="btn-primary">Salvar Conta</button>
+                    <button type="button" class="btn-secondary hidden" id="cancelAccEdit">Cancelar</button>
+                  </div>
                 </form>
                 <div id="accountList" class="item-list"></div>
               </div>
@@ -227,22 +412,88 @@
 
             <div class="panel">
               <div class="panel-header">
-                <h3>Categorias</h3>
+                <h3>Categorias de Gasto</h3>
               </div>
               <div class="panel-body">
-                <form id="categoryForm" class="stacked-form mb-4">
+                <form id="categoryForm" class="grid-form mb-4">
                   <input name="id" type="hidden">
-                  <label>Nome<input name="name" required></label>
-                  <label>Tipo
-                    <select name="type" required>
+                  <div class="input-group col-span-2">
+                    <input name="name" id="catName" required placeholder=" ">
+                    <label for="catName">Nome da Categoria</label>
+                  </div>
+                  <div class="input-group">
+                    <select name="type" id="catType" required>
                       <option value="EXPENSE">Despesa</option>
                       <option value="INCOME">Receita</option>
                       <option value="TRANSFER">Transferência</option>
                     </select>
-                  </label>
-                  <button type="submit" class="btn-primary">Salvar Categoria</button>
+                    <label for="catType">Tipo</label>
+                  </div>
+                  <div class="input-group">
+                    <input name="color" type="color" value="#6366f1" style="padding: 0.5rem; height: 3.2rem;">
+                    <label>Cor</label>
+                  </div>
+                  <div class="col-span-2">
+                    <button type="submit" class="btn-primary">Salvar Categoria</button>
+                    <button type="button" class="btn-secondary hidden" id="cancelCatEdit">Cancelar</button>
+                  </div>
                 </form>
                 <div id="categoryList" class="item-list"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+        
+        <!-- Counterparties & Tags Section -->
+        <section id="section-counterparties" class="view-section hidden">
+          <div class="dashboard-panels">
+            <div class="panel">
+              <div class="panel-header">
+                <h3>Pessoas e Empresas</h3>
+                <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.25rem;">Para quem você paga ou de quem recebe (lojas, empregador, prestadores...)</p>
+              </div>
+              <div class="panel-body">
+                <form id="counterpartyForm" class="grid-form mb-4">
+                  <div class="input-group col-span-2">
+                    <input name="name" id="cpName" required placeholder=" ">
+                    <label for="cpName">Nome</label>
+                  </div>
+                  <div class="input-group">
+                    <input name="document" id="cpDoc" placeholder=" ">
+                    <label for="cpDoc">Documento (CPF/CNPJ)</label>
+                  </div>
+                  <div class="input-group">
+                    <select name="type" id="cpType" required>
+                      <option value="PERSON">Pessoa Física</option>
+                      <option value="BUSINESS">Empresa</option>
+                      <option value="OTHER">Outro</option>
+                    </select>
+                    <label for="cpType">Tipo</label>
+                  </div>
+                  <div class="col-span-2">
+                    <button type="submit" class="btn-primary">Adicionar Pessoa</button>
+                  </div>
+                </form>
+                <div id="counterpartyList" class="item-list"></div>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-header">
+                <h3>Etiquetas</h3>
+                <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.25rem;">Crie marcadores para organizar suas movimentações (ex: viagem, natal...)</p>
+              </div>
+              <div class="panel-body">
+                <form id="tagForm" class="grid-form mb-4">
+                  <div class="input-group col-span-2">
+                    <input name="name" id="tagName" required placeholder=" ">
+                    <label for="tagName">Nome da Tag (ex: viagem_2024)</label>
+                  </div>
+                  <div class="col-span-2">
+                    <button type="submit" class="btn-primary">Adicionar Tag</button>
+                  </div>
+                </form>
+                <div id="tagList" class="item-list"></div>
               </div>
             </div>
           </div>
@@ -250,34 +501,59 @@
 
         <!-- Loans Section -->
         <section id="section-loans" class="view-section hidden">
-          <div class="panel">
+          <div class="panel mb-4">
             <div class="panel-header">
-              <h3>Novo Empréstimo / Dívida</h3>
+              <h3>Registrar Dívida</h3>
             </div>
             <div class="panel-body">
               <form id="loanForm" class="grid-form">
-                <input name="id" type="hidden">
-                <label>Nome / Título<input name="name" required></label>
-                <label>Tipo
-                  <select name="loanType" required>
+                <div class="input-group">
+                  <input name="name" id="loanName" required placeholder=" ">
+                  <label for="loanName">Nome / Título</label>
+                </div>
+                <div class="input-group">
+                  <select name="loanType" id="loanType" required>
                     <option value="INSTALLMENT">Parcelado (Com Prazo)</option>
                     <option value="OPEN_ENDED">Aberto (Sem Data Fixa)</option>
                   </select>
-                </label>
-                <label>Valor Principal<input name="principalAmount" type="number" step="0.01" required></label>
-                <label>Data Inicial<input name="startDate" type="date" required></label>
-                <label>Data Final (Opcional)<input name="endDate" type="date"></label>
-                <label>Taxa de Juros Mensal % (Opcional)<input name="interestRate" type="number" step="0.01"></label>
-                <div class="form-actions col-span-2">
+                  <label for="loanType">Tipo</label>
+                </div>
+                <div class="input-group">
+                  <input name="principalAmount" id="loanAmt" type="number" step="0.01" required placeholder=" ">
+                  <label for="loanAmt">Valor Principal</label>
+                </div>
+                <div class="input-group">
+                  <input name="startDate" id="loanStart" type="date" required>
+                  <label for="loanStart">Data Inicial</label>
+                </div>
+                <div class="input-group">
+                  <input name="endDate" id="loanEnd" type="date">
+                  <label for="loanEnd">Data Final (Previsão)</label>
+                </div>
+                <div class="input-group">
+                  <input name="interestRate" id="loanInterest" type="number" step="0.0001" placeholder=" ">
+                  <label for="loanInterest">Taxa de Juros (%)</label>
+                </div>
+                <div class="input-group">
+                  <select name="counterpartyId" id="loanCounterparty">
+                    <option value="">Nenhuma</option>
+                  </select>
+                  <label for="loanCounterparty">Pessoa / Empresa</label>
+                </div>
+                <div class="input-group col-span-2">
+                  <textarea name="notes" id="loanNotes" placeholder=" " rows="2"></textarea>
+                  <label for="loanNotes">Observações</label>
+                </div>
+                <div class="col-span-2">
                   <button type="submit" class="btn-primary">Registrar Dívida</button>
                 </div>
               </form>
             </div>
           </div>
 
-          <div class="panel mt-4">
-            <div class="panel-header flex-between">
-              <h3>Dívidas Ativas</h3>
+          <div class="panel">
+            <div class="panel-header">
+              <h3>Minhas Dívidas</h3>
             </div>
             <div class="panel-body table-responsive">
               <table class="data-table">
@@ -287,7 +563,7 @@
                     <th>Tipo</th>
                     <th>Data Inicial</th>
                     <th class="text-right">Saldo Devedor</th>
-                    <th></th>
+                    <th class="text-right">Ações</th>
                   </tr>
                 </thead>
                 <tbody id="loansTable"></tbody>
@@ -298,47 +574,61 @@
 
         <!-- Planning Section -->
         <section id="section-planning" class="view-section hidden">
-          
-          <!-- Metas -->
-          <div class="panel">
+          <div class="panel mb-4">
             <div class="panel-header">
               <h3>Minhas Metas</h3>
             </div>
             <div class="panel-body">
-              <form id="goalForm" class="grid-form">
-                <label>Nome do Objetivo<input name="name" required></label>
-                <label>Valor Alvo<input name="targetAmount" type="number" step="0.01" required></label>
-                <label>Data Alvo (Opcional)<input name="targetDate" type="date"></label>
-                <label>Cor<input name="color" type="color" value="#4CAF50"></label>
-                <div class="form-actions col-span-2">
+              <form id="goalForm" class="grid-form mb-4">
+                <div class="input-group">
+                  <input name="name" id="goalName" required placeholder=" ">
+                  <label for="goalName">Nome do Objetivo</label>
+                </div>
+                <div class="input-group">
+                  <input name="targetAmount" id="goalAmt" type="number" step="0.01" required placeholder=" ">
+                  <label for="goalAmt">Valor Alvo</label>
+                </div>
+                <div class="input-group">
+                  <input name="targetDate" id="goalDate" type="date">
+                  <label for="goalDate">Data Alvo (Opcional)</label>
+                </div>
+                <div class="input-group">
+                  <input name="color" type="color" value="#10b981" style="padding: 0.5rem; height: 3.2rem;">
+                  <label>Cor</label>
+                </div>
+                <div class="col-span-2">
                   <button type="submit" class="btn-primary">Criar Meta</button>
                 </div>
               </form>
-              <div class="metrics-grid mt-4" id="goalsList"></div>
+              <div class="metrics-grid" id="goalsList"></div>
             </div>
           </div>
 
-          <!-- Orçamentos -->
-          <div class="panel mt-4">
-            <div class="panel-header flex-between">
-              <h3>Orçamentos Mensais</h3>
+          <div class="panel">
+            <div class="panel-header">
+              <h3>Limites de Gasto Mensal</h3>
             </div>
             <div class="panel-body">
-              <form id="budgetForm" class="grid-form">
-                <label>Categoria<select name="categoryId" required></select></label>
-                <label>Limite Mensal Máximo<input name="amountLimit" type="number" step="0.01" required></label>
-                <div class="form-actions col-span-2">
+              <form id="budgetForm" class="grid-form mb-4">
+                <div class="input-group">
+                  <select name="categoryId" id="budCat" required></select>
+                  <label for="budCat">Categoria</label>
+                </div>
+                <div class="input-group">
+                  <input name="amountLimit" id="budAmt" type="number" step="0.01" required placeholder=" ">
+                  <label for="budAmt">Limite Mensal</label>
+                </div>
+                <div class="col-span-2">
                   <button type="submit" class="btn-primary">Definir Orçamento</button>
                 </div>
               </form>
               
-              <div class="table-responsive mt-4">
+              <div class="table-responsive">
                 <table class="data-table">
                   <thead>
                     <tr>
                       <th>Categoria</th>
-                      <th class="text-right">Limite</th>
-                      <th class="text-center">Progresso (%)</th>
+                      <th class="text-right">Progresso (Gasto / Limite)</th>
                     </tr>
                   </thead>
                   <tbody id="budgetsTable"></tbody>
@@ -352,13 +642,21 @@
         <section id="section-import" class="view-section hidden">
           <div class="panel">
             <div class="panel-header">
-              <h3>Importação de CSV Bancário</h3>
+              <h3>Importar Extrato Bancário</h3>
             </div>
             <div class="panel-body">
-              <form id="importForm" class="stacked-form">
-                <label>Conta de Destino<select name="accountId" required></select></label>
-                <label>Arquivo CSV<input name="file" type="file" accept=".csv" required></label>
-                <button type="submit" class="btn-primary">Enviar Arquivo</button>
+              <form id="importForm" class="grid-form">
+                <div class="input-group col-span-2">
+                  <select name="accountId" id="impAcc" required></select>
+                  <label for="impAcc">Conta de Destino</label>
+                </div>
+                <div class="input-group col-span-2">
+                  <input name="file" type="file" accept=".csv" required style="padding-top: 1rem;">
+                  <label>Arquivo CSV</label>
+                </div>
+                <div class="col-span-2">
+                  <button type="submit" class="btn-primary">Enviar Arquivo</button>
+                </div>
               </form>
               <div id="importList" class="item-list mt-4"></div>
             </div>
@@ -369,43 +667,135 @@
         <section id="section-bi" class="view-section hidden">
           <div class="panel">
             <div class="panel-header">
-              <h3>Dados para BI / Data Science</h3>
+              <h3>Relatórios Avançados</h3>
             </div>
             <div class="panel-body">
-              <p class="bi-description">Este sistema foi arquitetado como uma fundação de dados (Data Foundation). Você pode conectar ferramentas como <strong>Power BI</strong>, <strong>Metabase</strong> ou scripts em <strong>Python/Pandas</strong> diretamente nas views otimizadas do banco de dados.</p>
+              <p style="color: var(--text-muted); margin-bottom: 1.5rem;">Exporte seus dados para ferramentas de análise como Power BI, Metabase ou planilhas.</p>
               
-              <div class="bi-views-grid">
-                <div class="bi-view-card">
-                  <h4>v_fact_transactions</h4>
-                  <p>Tabela fato desnormalizada contendo todos os lançamentos com joins pré-computados (Conta, Categoria, Contraparte). Ideal para drill-down e análise preditiva.</p>
-                  <code>GET /api/reports/fact-transactions</code>
+              <div class="metrics-grid mb-4">
+                <div class="metric-card" style="padding: 1.25rem;">
+                  <h4 style="color: var(--primary); margin-bottom: 0.5rem;">v_fact_transactions</h4>
+                  <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">Fato desnormalizada com joins pré-computados.</p>
+                  <code style="background: rgba(0,0,0,0.3); padding: 0.4rem; border-radius: 4px; font-size: 0.8rem; display: block; border: 1px solid var(--border-color);">GET /api/reports/fact-transactions</code>
                 </div>
-                <div class="bi-view-card">
-                  <h4>v_monthly_cashflow</h4>
-                  <p>Tabela agregada contendo o fluxo de caixa líquido por mês. Transferências e ajustes são ignorados para refletir apenas o operacional.</p>
-                  <code>GET /api/reports/cash-flow/monthly</code>
+                <div class="metric-card" style="padding: 1.25rem;">
+                  <h4 style="color: var(--primary); margin-bottom: 0.5rem;">v_monthly_cashflow</h4>
+                  <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">Fluxo de caixa líquido mensal agregado.</p>
+                  <code style="background: rgba(0,0,0,0.3); padding: 0.4rem; border-radius: 4px; font-size: 0.8rem; display: block; border: 1px solid var(--border-color);">GET /api/reports/cash-flow/monthly</code>
                 </div>
               </div>
 
-              <div class="mt-4">
-                <h4>Preview da Tabela Fato</h4>
-                <div class="table-responsive">
-                  <table class="data-table">
-                    <thead>
-                      <tr>
-                        <th>Transaction_ID</th>
-                        <th>Year_Month</th>
-                        <th>Type</th>
-                        <th>Account_Name</th>
-                        <th>Category_Name</th>
-                        <th class="text-right">Amount</th>
-                        <th>Metadata (JSON)</th>
-                      </tr>
-                    </thead>
-                    <tbody id="biPreviewTable"></tbody>
-                  </table>
+              <h4>Preview: Fact Transactions (Top 10)</h4>
+              <div class="table-responsive mt-4">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Mês</th>
+                      <th>Tipo</th>
+                      <th>Conta</th>
+                      <th>Categoria</th>
+                      <th class="text-right">Valor</th>
+                    </tr>
+                  </thead>
+                  <tbody id="biPreviewTable"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Settings Section -->
+        <section id="section-settings" class="view-section hidden">
+          <div class="panel mb-4">
+            <div class="panel-header">
+              <h3>Perfil do Usuário</h3>
+            </div>
+            <div class="panel-body">
+              <form id="profileForm" class="grid-form">
+                <div class="input-group">
+                  <input name="firstName" id="profFirst" required placeholder=" ">
+                  <label for="profFirst">Nome</label>
+                </div>
+                <div class="input-group">
+                  <input name="lastName" id="profLast" required placeholder=" ">
+                  <label for="profLast">Sobrenome</label>
+                </div>
+                <div class="input-group col-span-2">
+                  <input name="email" id="profEmail" type="email" required placeholder=" ">
+                  <label for="profEmail">E-mail</label>
+                </div>
+                <div class="form-actions col-span-2">
+                  <button type="submit" class="btn-primary">Salvar Perfil</button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <h3>Preferências de Sistema</h3>
+            </div>
+            <div class="panel-body">
+              <form id="preferencesForm" class="grid-form">
+                <div class="input-group">
+                  <input name="defaultLocale" id="prefLocale" required placeholder=" ">
+                  <label for="prefLocale">Idioma Padrão (ex: pt-BR)</label>
+                </div>
+                <div class="input-group">
+                  <input name="defaultCurrency" id="prefCurr" required placeholder=" ">
+                  <label for="prefCurr">Moeda (ex: BRL)</label>
+                </div>
+                <div class="input-group">
+                  <input name="defaultTimezone" id="prefTz" required placeholder=" ">
+                  <label for="prefTz">Fuso Horário (ex: America/Sao_Paulo)</label>
+                </div>
+                <div class="input-group">
+                  <input name="dateFormat" id="prefDateFmt" required placeholder=" ">
+                  <label for="prefDateFmt">Formato de Data (ex: dd/MM/yyyy)</label>
+                </div>
+                <div class="input-group col-span-2">
+                  <input name="numberFormatLocale" id="prefNumFmt" required placeholder=" ">
+                  <label for="prefNumFmt">Formato Numérico (ex: pt-BR)</label>
+                </div>
+                <div class="form-actions col-span-2">
+                  <button type="submit" class="btn-primary">Salvar Preferências</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </section>
+
+        <!-- AI Section -->
+        <section id="section-ai" class="view-section hidden">
+          <div class="panel ai-panel">
+            <div class="panel-header" style="justify-content: space-between;">
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="24" height="24" style="color: var(--primary);"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                <h3>FinOS Advisor</h3>
+              </div>
+              <span class="badge" style="background: rgba(99, 102, 241, 0.1); color: var(--primary);">Powered by Ollama (llama3:8b)</span>
+            </div>
+            <div class="panel-body" style="display: flex; flex-direction: column; gap: 1rem;">
+              <p style="color: var(--text-muted);">Sou o seu assistente financeiro inteligente. Analiso seus saldos, despesas, fluxo de caixa e metas para fornecer conselhos práticos de forma totalmente local e privada.</p>
+              
+              <div class="ai-quick-actions" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                <button class="btn-secondary btn-sm" id="btnAiInsights" onclick="generateAiInsights()">Gerar Relatório Geral</button>
+                <button class="btn-secondary btn-sm" onclick="askAiQuestion('Onde posso economizar mais este mês?')">Onde economizar?</button>
+                <button class="btn-secondary btn-sm" onclick="askAiQuestion('Como está o progresso das minhas metas?')">Análise de Metas</button>
+                <button class="btn-secondary btn-sm" onclick="askAiQuestion('Resuma meu fluxo de caixa recente.')">Resumo do Fluxo de Caixa</button>
+              </div>
+
+              <div id="aiChatContainer" class="ai-chat-container">
+                <div class="ai-message system-message">
+                  <strong>FinOS Advisor:</strong> Olá! Clique em um dos botões acima para gerar um relatório ou digite uma pergunta abaixo.
                 </div>
               </div>
+
+              <form id="aiChatForm" class="ai-chat-form">
+                <input type="text" id="aiChatInput" placeholder="Faça uma pergunta sobre suas finanças..." required autocomplete="off">
+                <button type="submit" class="btn-primary" id="btnAiSend">Enviar</button>
+              </form>
             </div>
           </div>
         </section>
@@ -414,34 +804,46 @@
     </main>
   </div>
 
-  <div id="toast" class="toast hidden"></div>
-  <script src="/app.js"></script>
-  <script>
-    function switchAuthTab(tab) {
-      document.querySelectorAll('.auth-tabs .tab').forEach(t => t.classList.remove('active'));
-      document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
-      if (tab === 'login') {
-        document.getElementById('tabLogin').classList.add('active');
-        document.getElementById('loginForm').classList.add('active');
-      } else {
-        document.getElementById('tabSignup').classList.add('active');
-        document.getElementById('signupForm').classList.add('active');
-      }
-    }
+  <!-- Modal for Confirmation & Prompts -->
+  <div class="modal-overlay" id="customModal">
+    <div class="modal-content">
+      <h3 id="modalTitle" style="margin-bottom: 1rem;">Confirmação</h3>
+      <p id="modalMessage" style="color: var(--text-muted); margin-bottom: 1.5rem;">Tem certeza que deseja continuar?</p>
+      <div id="modalInputContainer" class="input-group hidden" style="margin-bottom: 1.5rem;">
+        <input type="number" id="modalInput" step="0.01" placeholder=" ">
+        <label id="modalInputLabel">Valor</label>
+      </div>
+      <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+        <button class="btn-secondary" onclick="closeModal()">Cancelar</button>
+        <button class="btn-primary" id="modalConfirmBtn">Confirmar</button>
+      </div>
+    </div>
+  </div>
 
-    // Nav Switcher
-    document.querySelectorAll('.nav-item').forEach(item => {
-      item.addEventListener('click', (e) => {
-        e.preventDefault();
-        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-        item.classList.add('active');
-        
-        const targetId = 'section-' + item.getAttribute('href').substring(1);
-        document.querySelectorAll('.view-section').forEach(s => s.classList.add('hidden'));
-        document.getElementById(targetId).classList.remove('hidden');
-        document.querySelector('.top-header h1').textContent = item.textContent;
-      });
-    });
-  </script>
+  <div id="toast" class="toast"></div>
+
+  <!-- Tutorial Overlay -->
+  <div id="tutorialOverlay" class="tutorial-overlay hidden">
+    <div class="tutorial-backdrop" id="tutorialBackdrop"></div>
+    <div class="tutorial-highlight" id="tutorialHighlight"></div>
+    <div class="tutorial-tooltip" id="tutorialTooltip">
+      <div class="tutorial-tooltip-header">
+        <div class="tutorial-step-badge" id="tutorialStepBadge">1 / 15</div>
+        <button class="tutorial-close" id="tutorialCloseBtn" title="Fechar Tutorial">&times;</button>
+      </div>
+      <h3 class="tutorial-tooltip-title" id="tutorialTitle">Bem-vindo ao FinOS!</h3>
+      <p class="tutorial-tooltip-desc" id="tutorialDesc">Descrição do passo</p>
+      <div class="tutorial-tip" id="tutorialTip"></div>
+      <div class="tutorial-progress">
+        <div class="tutorial-progress-bar" id="tutorialProgressBar"></div>
+      </div>
+      <div class="tutorial-tooltip-actions">
+        <button class="btn-secondary btn-sm" id="tutorialPrevBtn">← Anterior</button>
+        <button class="btn-primary btn-sm" id="tutorialNextBtn">Próximo →</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
 </body>
 </html>

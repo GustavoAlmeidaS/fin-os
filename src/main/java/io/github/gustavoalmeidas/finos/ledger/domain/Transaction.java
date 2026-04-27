@@ -14,6 +14,7 @@ import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import io.github.gustavoalmeidas.finos.importing.domain.ImportBatch;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -94,6 +95,10 @@ public class Transaction extends BaseEntity {
     @JoinColumn(name = "counterparty_id")
     private Counterparty counterparty;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "card_id")
+    private Card card;
+
     @ManyToMany
     @JoinTable(
             name = "transaction_tags",
@@ -105,8 +110,27 @@ public class Transaction extends BaseEntity {
     @OneToMany(mappedBy = "transaction", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<TransactionSplit> splits = new ArrayList<>();
 
-    @Column(name = "import_batch_id")
-    private Long importBatchId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "import_batch_id")
+    private ImportBatch importBatch;
+
+    @Column(name = "idempotency_key", nullable = false, unique = true, length = 255)
+    private String idempotencyKey;
+
+    @Column(name = "external_id", length = 255)
+    private String externalId;
+
+    @Column(name = "raw_description", nullable = false, columnDefinition = "TEXT")
+    private String rawDescription;
+
+    @Column(name = "searchable_description", nullable = false, columnDefinition = "TEXT")
+    private String searchableDescription;
+
+    @Column(name = "installment_info", length = 50)
+    private String installmentInfo;
+
+    @Column(name = "raw_row_payload", columnDefinition = "TEXT")
+    private String rawRowPayload;
 
     public void replaceSplits(List<TransactionSplit> newSplits) {
         splits.clear();

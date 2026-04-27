@@ -139,10 +139,19 @@ public class TransactionService {
         transaction.setNotes(request.notes());
         transaction.setCategory(category);
         transaction.setCounterparty(counterparty);
+        
+        if (request.cardId() != null) {
+            transaction.setCard(account.getCards().stream()
+                    .filter(c -> c.getId().equals(request.cardId()))
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("Cartão não encontrado nesta conta.")));
+        } else {
+            transaction.setCard(null);
+        }
         transaction.getTags().clear();
         transaction.getTags().addAll(tags);
         transaction.replaceSplits(splits);
-        transaction.setImportBatchId(request.importBatchId());
+        // Note: setting import batch directly by ID needs the entity now, skipping for manual creation
         transaction.setRecurrenceFrequency(request.recurrenceFrequency() == null ? RecurrenceFrequency.NONE : request.recurrenceFrequency());
         transaction.setRecurrenceEndDate(request.recurrenceEndDate());
         transaction.setMetadata(request.metadata());

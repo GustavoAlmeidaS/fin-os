@@ -31,6 +31,7 @@ public record CreateTransactionRequest(
         Long importBatchId,
         RecurrenceFrequency recurrenceFrequency,
         LocalDate recurrenceEndDate,
-        String metadata
+        String metadata,
+        Long cardId
 ) {
 }

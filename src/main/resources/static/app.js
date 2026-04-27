@@ -1,17 +1,11 @@
 const state = {
   token: localStorage.getItem("financeAnalyzerToken"),
   user: JSON.parse(localStorage.getItem("financeAnalyzerUser") || "null"),
-  accounts: [],
-  categories: [],
-  transactions: [],
-  loans: [],
-  goals: [],
-  budgets: [],
-  imports: [],
-  summary: null,
-  categorySummary: [],
-  biData: [],
-  search: ""
+  accounts: [], categories: [], transactions: [], loans: [], goals: [], budgets: [], imports: [], counterparties: [], tags: [],
+  summary: null, cashflow: [], categorySummary: [], biData: [],
+  filters: { search: "", type: "", accountId: "", status: "", startDate: "", endDate: "", page: 0 },
+  txPageInfo: { number: 0, totalPages: 1 },
+  editingTxId: null, editingAccId: null, editingCatId: null
 };
 
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
@@ -21,37 +15,51 @@ const els = {
   authPanel: document.querySelector("#authPanel"),
   dashboard: document.querySelector("#dashboard"),
   sessionStatus: document.querySelector("#sessionStatus"),
-  logoutButton: document.querySelector("#logoutButton"),
-  totalBalance: document.querySelector("#totalBalance"),
+  userAvatar: document.querySelector("#userAvatar"),
+  greetingText: document.querySelector("#greetingText"),
+  pageTitle: document.querySelector("#pageTitle"),
+  sidebar: document.querySelector("#sidebar"),
   
   // Forms
   loginForm: document.querySelector("#loginForm"),
   signupForm: document.querySelector("#signupForm"),
   accountForm: document.querySelector("#accountForm"),
   categoryForm: document.querySelector("#categoryForm"),
+  counterpartyForm: document.querySelector("#counterpartyForm"),
+  tagForm: document.querySelector("#tagForm"),
   transactionForm: document.querySelector("#transactionForm"),
   importForm: document.querySelector("#importForm"),
   loanForm: document.querySelector("#loanForm"),
   goalForm: document.querySelector("#goalForm"),
   budgetForm: document.querySelector("#budgetForm"),
+  profileForm: document.querySelector("#profileForm"),
+  preferencesForm: document.querySelector("#preferencesForm"),
   
-  // Buttons & Inputs
-  refreshButton: document.querySelector("#refreshButton"),
-  cancelEditButton: document.querySelector("#cancelEditButton"),
+  // Inputs & Buttons
   searchInput: document.querySelector("#searchInput"),
+  filterType: document.querySelector("#filterType"),
+  filterAccount: document.querySelector("#filterAccount"),
+  cancelEditButton: document.querySelector("#cancelEditButton"),
+  cancelAccEdit: document.querySelector("#cancelAccEdit"),
+  cancelCatEdit: document.querySelector("#cancelCatEdit"),
   
-  // Metrics
+  // Metrics & Charts
+  totalBalance: document.querySelector("#totalBalance"),
   netWorthValue: document.querySelector("#netWorthValue"),
   totalAssetsValue: document.querySelector("#totalAssetsValue"),
   totalDebtValue: document.querySelector("#totalDebtValue"),
+  monthIncomeValue: document.querySelector("#monthIncomeValue"),
+  monthExpenseValue: document.querySelector("#monthExpenseValue"),
+  cashflowChart: document.querySelector("#cashflowChart"),
+  categoryDonut: document.querySelector("#categoryDonut"),
   
-  // Lists
+  // Lists & Tables
   accountList: document.querySelector("#accountList"),
   categoryList: document.querySelector("#categoryList"),
+  counterpartyList: document.querySelector("#counterpartyList"),
+  tagList: document.querySelector("#tagList"),
   categorySummary: document.querySelector("#categorySummary"),
   importList: document.querySelector("#importList"),
-  
-  // Tables
   transactionsTable: document.querySelector("#transactionsTable"),
   recentTransactionsTable: document.querySelector("#recentTransactionsTable"),
   biPreviewTable: document.querySelector("#biPreviewTable"),
@@ -59,42 +67,128 @@ const els = {
   goalsList: document.querySelector("#goalsList"),
   budgetsTable: document.querySelector("#budgetsTable"),
   
-  toast: document.querySelector("#toast")
+  // Modal
+  modal: document.querySelector("#customModal"),
+  toast: document.querySelector("#toast"),
+  logoutButton: document.querySelector("#logoutButton"),
+  
+  // AI
+  aiChatContainer: document.querySelector("#aiChatContainer"),
+  aiChatInput: document.querySelector("#aiChatInput"),
+  btnAiSend: document.querySelector("#btnAiSend")
 };
 
+// ==========================================
+// CORE / API
+// ==========================================
 async function api(path, options = {}) {
   const headers = options.body instanceof FormData ? {} : { "Content-Type": "application/json" };
   if (state.token) headers.Authorization = `Bearer ${state.token}`;
+  
   const response = await fetch(path, { ...options, headers: { ...headers, ...(options.headers || {}) } });
   const payload = await response.json().catch(() => null);
+  
   if (!response.ok || payload?.success === false) {
-    throw new Error(payload?.message || "Erro na operação.");
+    if (response.status === 401) { clearSession(); }
+    const err = new Error(payload?.message || "Erro na operação.");
+    err.details = payload?.details;
+    throw err;
   }
+  
+  if (options.method && ["POST", "PUT", "DELETE"].includes(options.method.toUpperCase())) {
+    window.dispatchEvent(new CustomEvent('finos_api_action', { detail: { path, method: options.method.toUpperCase() } }));
+  }
+  
   return payload;
 }
 
-function serialize(form) {
-  return Object.fromEntries(new FormData(form).entries());
-}
+function serialize(form) { return Object.fromEntries(new FormData(form).entries()); }
 
-function showToast(message) {
+// ==========================================
+// UI HELPERS
+// ==========================================
+function showToast(message, isError = false) {
   els.toast.textContent = message;
-  els.toast.classList.remove("hidden");
+  els.toast.className = `toast active ${isError ? 'error' : ''}`;
   clearTimeout(showToast.timeout);
-  showToast.timeout = setTimeout(() => els.toast.classList.add("hidden"), 3000);
+  showToast.timeout = setTimeout(() => els.toast.classList.remove("active"), 3000);
 }
 
+function toggleButtonLoading(btn, isLoading) {
+  if (!btn) return;
+  if (isLoading) {
+    btn.dataset.originalText = btn.innerHTML;
+    btn.innerHTML = `<svg class="spinner" viewBox="0 0 50 50" style="width:20px;height:20px;animation:spin 1s linear infinite;"><circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="5" stroke-dasharray="90 150" stroke-linecap="round"></circle></svg> Processando...`;
+    btn.disabled = true;
+  } else {
+    btn.innerHTML = btn.dataset.originalText;
+    btn.disabled = false;
+  }
+}
+
+// Modal System
+let modalResolve = null;
+function openModal(title, message, inputConfig = null) {
+  return new Promise(resolve => {
+    modalResolve = resolve;
+    document.getElementById("modalTitle").textContent = title;
+    document.getElementById("modalMessage").textContent = message;
+    
+    const inputContainer = document.getElementById("modalInputContainer");
+    const inputField = document.getElementById("modalInput");
+    
+    if (inputConfig) {
+      inputContainer.classList.remove("hidden");
+      document.getElementById("modalInputLabel").textContent = inputConfig.label;
+      inputField.type = inputConfig.type || "text";
+      inputField.value = "";
+      setTimeout(() => inputField.focus(), 100);
+    } else {
+      inputContainer.classList.add("hidden");
+    }
+    
+    els.modal.classList.add("active");
+  });
+}
+function closeModal() { els.modal.classList.remove("active"); if (modalResolve) modalResolve(null); }
+document.getElementById("modalConfirmBtn").addEventListener("click", () => {
+  els.modal.classList.remove("active");
+  const val = document.getElementById("modalInputContainer").classList.contains("hidden") 
+    ? true 
+    : document.getElementById("modalInput").value;
+  if (modalResolve) modalResolve(val);
+});
+
+// Animations
+function animateValue(obj, start, end, duration) {
+  let startTimestamp = null;
+  const step = (timestamp) => {
+    if (!startTimestamp) startTimestamp = timestamp;
+    const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+    obj.innerHTML = brl.format(progress * (end - start) + start);
+    if (progress < 1) window.requestAnimationFrame(step);
+  };
+  window.requestAnimationFrame(step);
+}
+
+// ==========================================
+// SESSION & NAVIGATION
+// ==========================================
 function setSession(auth) {
-  state.token = auth.token;
-  state.user = auth;
+  state.token = auth.token; state.user = auth;
   localStorage.setItem("financeAnalyzerToken", auth.token);
   localStorage.setItem("financeAnalyzerUser", JSON.stringify(auth));
   renderShell();
+  
+  if (!localStorage.getItem("finos_tutorial_seen")) {
+    setTimeout(() => {
+      showToast("💡 Primeira vez aqui? Clique em 'Tutorial do Sistema' na barra lateral para um guia interativo!", false);
+      localStorage.setItem("finos_tutorial_seen", "true");
+    }, 1500);
+  }
 }
-
 function clearSession() {
-  state.token = null;
-  state.user = null;
+  state.token = null; state.user = null;
   localStorage.removeItem("financeAnalyzerToken");
   localStorage.removeItem("financeAnalyzerUser");
   renderShell();
@@ -104,136 +198,335 @@ function renderShell() {
   const signedIn = Boolean(state.token);
   els.authPanel.classList.toggle("hidden", signedIn);
   els.dashboard.classList.toggle("hidden", !signedIn);
-  els.sessionStatus.textContent = signedIn ? state.user?.username : "";
+  if (signedIn && state.user) {
+    els.sessionStatus.textContent = state.user.username;
+    els.userAvatar.textContent = (state.user.firstName ? state.user.firstName[0] : state.user.username[0]).toUpperCase();
+    
+    const hour = new Date().getHours();
+    const greeting = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
+    els.greetingText.textContent = `${greeting}, ${state.user.firstName || state.user.username}!`;
+  }
 }
 
+window.switchAuthTab = function(tab) {
+  document.querySelectorAll('.auth-tabs .tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
+  document.getElementById(tab === 'login' ? 'tabLogin' : 'tabSignup').classList.add('active');
+  document.getElementById(tab === 'login' ? 'loginForm' : 'signupForm').classList.add('active');
+}
+
+window.toggleSidebar = function() { els.sidebar.classList.toggle("open"); }
+
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', (e) => {
+    e.preventDefault();
+    window.location.hash = item.getAttribute('href');
+    window.dispatchEvent(new Event('hashchange'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    item.classList.add('active');
+    els.sidebar.classList.remove("open");
+    
+    const targetId = 'section-' + item.getAttribute('href').substring(1);
+    document.querySelectorAll('.view-section').forEach(s => s.classList.add('hidden'));
+    document.getElementById(targetId).classList.remove('hidden');
+    els.pageTitle.textContent = item.textContent.trim();
+  });
+});
+
+// ==========================================
+// DATA LOADING
+// ==========================================
 async function loadDashboard() {
-  if (!state.token) return;
-  const [accounts, categories, transactions, summary, categorySummary, imports, biData, loans, goals, budgets] = await Promise.all([
-    api("/api/accounts"),
-    api("/api/categories"),
-    api("/api/transactions?size=50&sort=transactionDate,desc"),
-    api("/api/reports/dashboard-summary"),
-    api("/api/reports/categories/summary"),
-    api("/api/imports?size=5&sort=id,desc"),
-    api("/api/reports/fact-transactions"),
-    api("/api/loans"),
-    api("/api/planning/goals"),
-    api("/api/planning/budgets")
-  ]);
-  state.accounts = accounts.data || [];
-  state.categories = categories.data || [];
-  state.transactions = transactions.data || [];
-  state.summary = summary.data || null;
-  state.categorySummary = categorySummary.data?.categories || [];
-  state.imports = imports.data || [];
-  state.biData = biData.data || [];
-  state.loans = loans.data || [];
-  state.goals = goals.data || [];
-  state.budgets = budgets.data || [];
+  if (!state.token) return switchView('auth');
+  els.authPanel.classList.add('hidden');
+  els.dashboard.classList.remove('hidden');
   
-  renderAll();
+  try {
+    const [accs, cats, txs, smry, cf, cs, bi, lns, gls, bdg, imp, cps, tgs, prof, pref] = await Promise.all([
+      api("/api/accounts"),
+      api("/api/categories"),
+      api(`/api/transactions?size=20&page=${state.filters.page}&search=${state.filters.search}&type=${state.filters.type}&accountId=${state.filters.accountId}&status=${state.filters.status}&startDate=${state.filters.startDate}&endDate=${state.filters.endDate}`),
+      api("/api/reports/dashboard-summary").catch(() => ({data: null})), // handle 404
+      api("/api/reports/cash-flow/monthly"),
+      api("/api/reports/categories/summary"),
+      api("/api/reports/fact-transactions"),
+      api("/api/loans"),
+      api("/api/planning/goals"),
+      api("/api/planning/budgets"),
+      api("/api/imports?size=5&sort=id,desc"),
+      api("/api/counterparties"),
+      api("/api/tags"),
+      api("/api/users/profile"),
+      api("/api/users/preferences")
+    ]);
+    
+    state.accounts = accs.data || [];
+    state.categories = cats.data || [];
+    state.transactions = txs.data?.content || txs.data || [];
+    state.txPageInfo = {
+      number: txs.data?.number || 0,
+      totalPages: txs.data?.totalPages || 1
+    };
+    state.summary = smry.data;
+    state.cashflow = cf.data?.items || [];
+    state.categorySummary = cs.data?.categories || [];
+    state.biData = bi.data || [];
+    state.loans = lns.data || [];
+    state.goals = gls.data || [];
+    state.budgets = bdg.data || [];
+    state.imports = imp.data?.content || imp.data || [];
+    state.counterparties = cps.data || [];
+    state.tags = tgs.data || [];
+    state.profile = prof.data || {};
+    state.preferences = pref.data || {};
+    
+    renderDropdowns();
+    renderAll();
+  } catch(e) { showToast(e.message, true); }
 }
 
 function renderAll() {
-  renderMetrics();
-  renderAccountOptions();
-  renderCategoryOptions();
-  renderAccounts();
-  renderCategories();
-  renderCategorySummary();
+  renderMetrics(); renderCashflowChart(); renderDonutChart();
+  renderDropdowns();
+  renderAccounts(); renderCategories(); renderCounterparties(); renderTags();
+  renderTransactions(); renderBiPreview(); renderLoans(); renderGoals(); renderBudgets();
   renderImports();
-  renderTransactions();
-  renderBiPreview();
-  renderLoans();
-  renderGoals();
-  renderBudgets();
+  renderSettings();
 }
 
+function renderSettings() {
+  if (state.profile && els.profileForm) {
+    els.profileForm.firstName.value = state.profile.firstName || '';
+    els.profileForm.lastName.value = state.profile.lastName || '';
+    els.profileForm.email.value = state.profile.email || '';
+  }
+  if (state.preferences && els.preferencesForm) {
+    els.preferencesForm.defaultLocale.value = state.preferences.defaultLocale || '';
+    els.preferencesForm.defaultCurrency.value = state.preferences.defaultCurrency || '';
+    els.preferencesForm.defaultTimezone.value = state.preferences.defaultTimezone || '';
+    els.preferencesForm.dateFormat.value = state.preferences.dateFormat || '';
+    els.preferencesForm.numberFormatLocale.value = state.preferences.numberFormatLocale || '';
+  }
+}
+
+// ==========================================
+// RENDERING
+// ==========================================
 function renderMetrics() {
-  const assets = Number(state.summary?.totalAssets || 0);
-  const debt = Number(state.summary?.totalDebt || 0);
-  const netWorth = Number(state.summary?.netWorth || 0);
+  if (!state.summary) return;
+  animateValue(els.totalBalance, 0, state.summary.totalAssets || 0, 1000);
+  animateValue(els.netWorthValue, 0, state.summary.netWorth || 0, 1000);
+  animateValue(els.totalAssetsValue, 0, state.summary.totalAssets || 0, 1000);
+  animateValue(els.totalDebtValue, 0, state.summary.totalDebt || 0, 1000);
+  animateValue(els.monthIncomeValue, 0, state.summary.currentMonthIncome || 0, 1000);
+  animateValue(els.monthExpenseValue, 0, state.summary.currentMonthExpenses || 0, 1000);
+}
+
+function renderCashflowChart() {
+  if (!state.cashflow.length) {
+    els.cashflowChart.innerHTML = `<div class="empty-state">
+      <p>📊 Cadastre lançamentos para visualizar o fluxo de caixa mensal.</p>
+    </div>`;
+    return;
+  }
+  const maxVal = Math.max(...state.cashflow.map(i => Math.max(i.income, i.expenses, 1)));
+  els.cashflowChart.innerHTML = state.cashflow.slice(-6).map(item => {
+    const incHeight = (item.income / maxVal) * 100;
+    const expHeight = (item.expenses / maxVal) * 100;
+    return `
+      <div class="chart-col">
+        <div class="chart-bar income" style="height: ${incHeight}%"></div>
+        <div class="chart-bar expense" style="height: ${expHeight}%"></div>
+        <span class="chart-label">${item.yearMonth.substring(5)}</span>
+        <div class="chart-tooltip">
+          <span class="text-success">+${brl.format(item.income)}</span><br>
+          <span class="text-danger">-${brl.format(item.expenses)}</span><br>
+          Saldo: <strong>${brl.format(item.net)}</strong>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function renderDonutChart() {
+  if (!state.categorySummary.length) return;
+  const top = state.categorySummary.slice(0, 5);
+  const total = top.reduce((acc, c) => acc + c.totalAmount, 0);
+  let conicString = "";
+  let currentDeg = 0;
   
-  els.totalBalance.textContent = brl.format(assets); // header
-  els.netWorthValue.textContent = brl.format(netWorth);
-  els.totalAssetsValue.textContent = brl.format(assets);
-  els.totalDebtValue.textContent = brl.format(debt);
+  els.categorySummary.innerHTML = top.map((item, i) => {
+    const cat = state.categories.find(c => c.id === item.categoryId);
+    const color = cat?.color || `hsl(${i*60}, 70%, 60%)`;
+    const pct = total > 0 ? (item.totalAmount / total) * 100 : 0;
+    conicString += `${color} ${currentDeg}% ${currentDeg + pct}%, `;
+    currentDeg += pct;
+    
+    return `
+      <div class="list-item" style="border-left: 4px solid ${color}">
+        <span>${escapeHtml(item.categoryName)}</span>
+        <strong class="text-danger">${brl.format(item.totalAmount)}</strong>
+      </div>`;
+  }).join("");
+  
+  if (total > 0) {
+    els.categoryDonut.style.background = `conic-gradient(${conicString.slice(0,-2)})`;
+  }
 }
 
-function renderAccountOptions() {
-  const options = state.accounts.map(acc => `<option value="${acc.id}">${escapeHtml(acc.name)}</option>`);
-  els.transactionForm.accountId.innerHTML = options.join("");
-  els.transactionForm.destinationAccountId.innerHTML = `<option value="">Não se aplica</option>${options.join("")}`;
-  if (els.importForm) els.importForm.accountId.innerHTML = options.join("");
+function renderDropdowns() {
+  const accOpts = state.accounts.map(a => `<option value="${a.id}">${escapeHtml(a.name)}</option>`).join("");
+  els.transactionForm.accountId.innerHTML = accOpts;
+  els.transactionForm.destinationAccountId.innerHTML = `<option value="">Não se aplica</option>${accOpts}`;
+  els.filterAccount.innerHTML = `<option value="">Todas as Contas</option>${accOpts}`;
+  if(els.importForm) els.importForm.accountId.innerHTML = accOpts;
+  
+  els.transactionForm.categoryId.innerHTML = `<option value="">Sem categoria</option>` + 
+    state.categories.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
+    
+  let cpOpts = `<option value="">Opcional / Nenhuma</option>` + state.counterparties.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
+  els.transactionForm.counterpartyId.innerHTML = cpOpts;
+  if(els.loanForm && els.loanForm.counterpartyId) els.loanForm.counterpartyId.innerHTML = cpOpts;
+    
+  if(els.budgetForm) {
+    els.budgetForm.categoryId.innerHTML = state.categories.filter(c => c.type === 'EXPENSE')
+      .map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
+  }
 }
 
-function renderCategoryOptions() {
-  const options = state.categories.map(cat => `<option value="${cat.id}">${escapeHtml(cat.name)}</option>`);
-  els.transactionForm.categoryId.innerHTML = `<option value="">Sem categoria</option>${options.join("")}`;
-}
+function buildEmpty(text, html = false) { return `<div class="empty-state">${html ? text : escapeHtml(text)}</div>`; }
 
 function renderAccounts() {
-  els.accountList.innerHTML = state.accounts.map(acc => `
+  els.accountList.innerHTML = state.accounts.length === 0 ? buildEmpty(`🏦 Nenhuma conta cadastrada.<br><small style="color:var(--text-muted)">Use o formulário acima para adicionar sua primeira conta bancária.</small>`, true) : state.accounts.map(acc => `
     <div class="list-item">
-      <span>${escapeHtml(acc.name)}</span>
-      <strong>${brl.format(acc.currentBalance || 0)}</strong>
+      <div>
+        <span style="font-weight: 500">${escapeHtml(acc.name)}</span>
+        <span class="badge" style="margin-left: 0.5rem">${acc.type}</span>
+      </div>
+      <div style="display: flex; gap: 1rem; align-items: center;">
+        <strong class="${acc.currentBalance < 0 ? 'text-danger' : 'text-success'}">${brl.format(acc.currentBalance || 0)}</strong>
+        <div class="action-btns">
+          <button class="btn-secondary btn-sm" onclick="editAccount(${acc.id})">Editar</button>
+          <button class="btn-danger btn-sm" onclick="deleteAccount(${acc.id})">X</button>
+        </div>
+      </div>
     </div>`).join("");
 }
 
 function renderCategories() {
-  els.categoryList.innerHTML = state.categories.map(cat => `
-    <div class="list-item">
+  els.categoryList.innerHTML = state.categories.length === 0 ? buildEmpty("Nenhuma categoria.") : state.categories.map(cat => `
+    <div class="list-item" style="border-left: 4px solid ${cat.color || '#fff'}">
       <span>${escapeHtml(cat.name)}</span>
-      <span class="badge">${labelTxType(cat.type)}</span>
-    </div>`).join("");
-}
-
-function renderCategorySummary() {
-  els.categorySummary.innerHTML = state.categorySummary.map(item => `
-    <div class="list-item">
-      <span>${escapeHtml(item.categoryName)}</span>
-      <strong class="text-danger">${brl.format(item.totalAmount || 0)}</strong>
-    </div>`).join("");
-}
-
-function renderImports() {
-  els.importList.innerHTML = state.imports.map(batch => `
-    <div class="list-item">
-      <div>
-        <strong>${escapeHtml(batch.filename)}</strong><br>
-        <small class="badge">${batch.status}</small>
+      <div style="display: flex; gap: 1rem; align-items: center;">
+        <span class="badge">${labelTxType(cat.type)}</span>
+        <div class="action-btns">
+          <button class="btn-secondary btn-sm" onclick="editCategory(${cat.id})">Editar</button>
+          <button class="btn-danger btn-sm" onclick="deleteCategory(${cat.id})">X</button>
+        </div>
       </div>
-      ${batch.status === "PREVIEWED" ? `<button class="btn-secondary btn-sm" onclick="confirmImport(${batch.id})">Confirmar</button>` : ""}
     </div>`).join("");
 }
 
-window.confirmImport = async function(id) {
-  try {
-    await api(`/api/imports/${id}/confirm`, { method: "POST" });
-    await loadDashboard();
-    showToast("Importação confirmada.");
-  } catch(e) { showToast(e.message); }
+function renderCounterparties() {
+  els.counterpartyList.innerHTML = state.counterparties.length === 0 ? buildEmpty(`👥 Nenhuma pessoa ou empresa cadastrada.<br><small style="color:var(--text-muted)">Adicione as pessoas e empresas com quem você negocia.</small>`, true) : state.counterparties.map(cp => `
+    <div class="list-item">
+      <span>${escapeHtml(cp.name)} <small class="text-muted">(${cp.document||'S/N'})</small></span>
+      <div class="action-btns">
+        <button class="btn-danger btn-sm" onclick="deleteCp(${cp.id})">Remover</button>
+      </div>
+    </div>`).join("");
+}
+
+function renderTags() {
+  els.tagList.innerHTML = state.tags.length === 0 ? buildEmpty("Nenhuma tag.") : state.tags.map(tag => `
+    <div class="list-item">
+      <span>#${escapeHtml(tag.name)}</span>
+    </div>`).join("");
 }
 
 function renderTransactions() {
-  const rows = state.transactions.filter(tx => 
-    `${tx.description} ${tx.accountName || ""} ${tx.categoryName || ""} ${labelTxType(tx.type)}`.toLowerCase().includes(state.search.toLowerCase())
-  );
-  
-  const buildRow = (tx, withActions = false) => `
+  let rows = state.transactions;
+  const s = state.filters.search.toLowerCase();
+  if (s) rows = rows.filter(tx => `${tx.description} ${tx.accountName||""} ${tx.categoryName||""}`.toLowerCase().includes(s));
+  if (state.filters.type) rows = rows.filter(tx => tx.type === state.filters.type);
+  if (state.filters.accountId) rows = rows.filter(tx => String(tx.accountId) === state.filters.accountId);
+
+  if (rows.length === 0) {
+    els.transactionsTable.innerHTML = `<tr><td colspan="7" class="text-center" style="padding: 2rem;">📝 Nenhum lançamento encontrado.<br><small style="color:var(--text-muted)">Registre receitas e despesas no formulário acima.</small></td></tr>`;
+    els.recentTransactionsTable.innerHTML = `<tr><td colspan="4" class="text-center" style="padding: 2rem; color:var(--text-muted);">Registre movimentações no menu <strong>Receitas e Despesas</strong> para vê-las aqui.</td></tr>`;
+    return;
+  }
+
+  const buildRow = (tx, full = true) => `
     <tr>
-      <td>${dateFormatter.format(new Date(`${tx.transactionDate}T00:00:00Z`))}</td>
-      <td>${escapeHtml(tx.description)}</td>
-      ${withActions ? `<td>${escapeHtml(tx.accountName || "-")}</td>` : ''}
-      <td>${escapeHtml(tx.categoryName || "-")}</td>
-      ${withActions ? `<td><span class="badge">${labelTxType(tx.type)}</span></td>` : ''}
+      <td>${dateFormatter.format(new Date(`${tx.transactionDate}T00:00:00Z`))}<br>
+          <small class="badge" style="font-size:0.65rem">${tx.status === 'PENDING' ? '⏳ Pendente' : '✅ Pago'}</small></td>
+      <td><strong>${escapeHtml(tx.description)}</strong>
+          ${tx.counterpartyName ? `<br><small class="text-muted">${escapeHtml(tx.counterpartyName)}</small>` : ''}</td>
+      ${full ? `<td>${escapeHtml(tx.accountName || "-")}</td>` : ''}
+      <td><span class="badge" style="background: ${tx.categoryColor || 'transparent'}">${escapeHtml(tx.categoryName || "-")}</span></td>
+      ${full ? `<td><span class="badge">${labelTxType(tx.type)}</span></td>` : ''}
       <td class="text-right ${tx.type === "INCOME" ? "text-success" : tx.type === "EXPENSE" ? "text-danger" : ""}">${brl.format(tx.amount || 0)}</td>
-      ${withActions ? `<td><button class="btn-secondary btn-sm" onclick="deleteTx(${tx.id})">Excluir</button></td>` : ''}
+      ${full ? `<td class="text-right">
+        <div class="action-btns">
+          ${tx.status === 'PENDING' ? `<button class="btn-primary btn-sm" onclick="approveTx(${tx.id})" title="Aprovar/Efetivar">✔</button>` : ''}
+          <button class="btn-secondary btn-sm" onclick="editTx(${tx.id})">✎</button>
+          <button class="btn-danger btn-sm" onclick="deleteTx(${tx.id})">X</button>
+        </div>
+      </td>` : ''}
     </tr>`;
 
   els.transactionsTable.innerHTML = rows.map(tx => buildRow(tx, true)).join("");
   els.recentTransactionsTable.innerHTML = rows.slice(0, 5).map(tx => buildRow(tx, false)).join("");
+  
+  // Update Pagination Controls
+  const p = state.txPageInfo || { number: 0, totalPages: 1 };
+  const prevBtn = document.getElementById('btnPrevPage');
+  const nextBtn = document.getElementById('btnNextPage');
+  const pageInd = document.getElementById('pageIndicator');
+  if (prevBtn && nextBtn && pageInd) {
+    prevBtn.disabled = p.number <= 0;
+    nextBtn.disabled = p.number >= p.totalPages - 1;
+    pageInd.textContent = `Página ${p.number + 1} de ${Math.max(1, p.totalPages)}`;
+  }
+}
+
+function renderGoals() {
+  els.goalsList.innerHTML = state.goals.length === 0 ? buildEmpty(`🎯 Nenhuma meta definida.<br><small style="color:var(--text-muted)">Crie uma meta acima para acompanhar seus objetivos financeiros.</small>`, true) : state.goals.map(goal => {
+    const progress = Math.min(100, Math.round((goal.currentAmount / goal.targetAmount) * 100)) || 0;
+    return `
+      <div class="metric-card" style="border-left: 4px solid ${goal.color}">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span class="metric-label">${escapeHtml(goal.name)}</span>
+          <span class="badge" style="background: ${goal.color}20; color: ${goal.color}">${progress}%</span>
+        </div>
+        <strong class="metric-value">${brl.format(goal.currentAmount)}</strong>
+        <div style="font-size:0.8rem; color:var(--text-muted); margin-top:0.25rem;">Meta: ${brl.format(goal.targetAmount)}</div>
+        <div class="progress-track">
+          <div class="progress-fill" style="background: ${goal.color}; width: ${progress}%"></div>
+        </div>
+        <button class="btn-secondary btn-sm mt-4" style="width:100%" onclick="depositGoal(${goal.id})">+ Depositar Valor</button>
+      </div>`;
+  }).join("");
+}
+
+function renderBudgets() {
+  els.budgetsTable.innerHTML = state.budgets.length === 0 ? `<tr><td colspan="2" class="text-center" style="padding: 2rem;">💰 Defina limites de gastos por categoria para controlar seu orçamento.</td></tr>` : state.budgets.map(b => {
+    const sum = state.categorySummary.find(s => s.categoryId === b.categoryId);
+    const spent = sum ? sum.totalAmount : 0;
+    const progress = Math.min(100, (spent / b.amountLimit) * 100) || 0;
+    const isOver = spent > b.amountLimit;
+    const color = isOver ? 'var(--danger)' : 'var(--success)';
+    return `
+      <tr>
+        <td><strong>${escapeHtml(b.categoryName)}</strong><br><small class="text-muted">${brl.format(spent)} de ${brl.format(b.amountLimit)}</small></td>
+        <td style="vertical-align: middle;">
+          <div class="progress-track" style="margin:0;">
+            <div class="progress-fill" style="background: ${color}; width: ${progress}%"></div>
+          </div>
+        </td>
+      </tr>`;
+  }).join("");
 }
 
 function renderBiPreview() {
@@ -245,196 +538,720 @@ function renderBiPreview() {
       <td>${escapeHtml(row.account_name)}</td>
       <td>${escapeHtml(row.category_name || '-')}</td>
       <td class="text-right">${row.amount}</td>
-      <td><code>${escapeHtml(row.metadata || 'null')}</code></td>
-    </tr>
-  `).join("");
+    </tr>`).join("");
+}
+
+function renderImports() {
+  if (!els.importList) return;
+  els.importList.innerHTML = state.imports.length === 0 ? buildEmpty("Nenhuma importação recente.") : state.imports.map(imp => {
+    let actions = "";
+    if (imp.status === "PENDING_REVIEW") {
+      actions = `
+        <div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
+          <button class="btn-primary btn-sm" onclick="confirmImport(${imp.id})">Confirmar</button>
+          <button class="btn-danger btn-sm" onclick="cancelImport(${imp.id})">Cancelar</button>
+        </div>
+      `;
+    }
+    return `
+      <div class="metric-card" style="margin-bottom: 1rem;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <strong>Arquivo: ${escapeHtml(imp.filename)}</strong>
+          <span class="badge" style="background: ${imp.status === 'COMPLETED' ? 'var(--success)' : imp.status === 'FAILED' ? 'var(--danger)' : 'var(--primary)'}">${imp.status}</span>
+        </div>
+        <div style="font-size:0.85rem; color:var(--text-muted); margin-top:0.5rem;">
+          Registros: ${imp.totalRecords} totais | ${imp.validRecords} válidos | ${imp.invalidRecords} inválidos | ${imp.duplicateRecords} duplicados
+        </div>
+        ${actions}
+      </div>`;
+  }).join("");
 }
 
 function renderLoans() {
-  els.loansTable.innerHTML = state.loans.map(loan => `
+  els.loansTable.innerHTML = state.loans.length === 0 ? `<tr><td colspan="5" class="text-center" style="padding: 2rem;">✅ Nenhuma dívida registrada. Parabéns!<br><small style="color:var(--text-muted)">Use o formulário acima caso precise controlar um empréstimo.</small></td></tr>` : state.loans.map(loan => `
     <tr>
-      <td>${escapeHtml(loan.name)}</td>
+      <td><strong>${escapeHtml(loan.name)}</strong></td>
       <td><span class="badge">${loan.loanType === 'INSTALLMENT' ? 'Parcelado' : 'Aberto'}</span></td>
       <td>${dateFormatter.format(new Date(`${loan.startDate}T00:00:00Z`))}</td>
       <td class="text-right text-danger">${brl.format(loan.currentBalance || 0)}</td>
-      <td><button class="btn-secondary btn-sm" onclick="deleteLoan(${loan.id})">Excluir</button></td>
-    </tr>
-  `).join("");
+      <td class="text-right" style="white-space: nowrap;">
+        <button class="btn-secondary btn-sm" onclick="payLoan(${loan.id})" title="Registrar Pagamento">Pgto</button>
+        <button class="btn-danger btn-sm" onclick="deleteLoan(${loan.id})" title="Excluir">X</button>
+      </td>
+    </tr>`).join("");
 }
 
-window.deleteLoan = async function(id) {
-  if (!confirm("Excluir empréstimo/dívida?")) return;
+// ==========================================
+// ACTIONS & CRUD
+// ==========================================
+window.deleteTx = async id => {
+  if (await openModal("Excluir Lançamento", "O saldo da conta será recalculado. Deseja continuar?")) {
+    try { await api(`/api/transactions/${id}`, { method: "DELETE" }); showToast("Lançamento excluído", false); loadDashboard(); } 
+    catch(e) { showToast(e.message, true); }
+  }
+}
+window.approveTx = async id => {
+  const tx = state.transactions.find(t => t.id === id);
+  if (!tx) return;
   try {
-    await api(`/api/loans/${id}`, { method: "DELETE" });
-    await loadDashboard();
-    showToast("Dívida excluída.");
-  } catch(e) { showToast(e.message); }
+    const updated = { ...tx, status: "POSTED" };
+    await api(`/api/transactions/${id}`, { method: "PUT", body: JSON.stringify(updated) });
+    showToast("Lançamento efetivado!", false);
+    loadDashboard();
+  } catch(e) { showToast(e.message, true); }
+}
+window.editTx = id => {
+  const tx = state.transactions.find(t => t.id === id);
+  if(!tx) return;
+  state.editingTxId = id;
+  els.transactionForm.accountId.value = tx.accountId;
+  els.transactionForm.type.value = tx.type;
+  els.transactionForm.categoryId.value = tx.categoryId || "";
+  els.transactionForm.transactionDate.value = tx.transactionDate;
+  els.transactionForm.amount.value = tx.amount;
+  els.transactionForm.status.value = tx.status;
+  els.transactionForm.description.value = tx.description;
+  document.getElementById("txFormTitle").textContent = "Editar Lançamento";
+  document.getElementById("btnSaveTx").textContent = "Atualizar";
+  els.cancelEditButton.classList.remove("hidden");
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-function renderGoals() {
-  if (!els.goalsList) return;
-  els.goalsList.innerHTML = state.goals.map(goal => {
-    const progress = Math.min(100, Math.round((goal.currentAmount / goal.targetAmount) * 100)) || 0;
-    return `
-      <div class="metric-card" style="border-left: 4px solid ${goal.color}">
-        <div class="flex-between">
-          <span class="metric-label">${escapeHtml(goal.name)}</span>
-          <span class="badge" style="background: ${goal.color}; color: white">${progress}%</span>
-        </div>
-        <strong class="metric-value" style="font-size: 1.25rem">${brl.format(goal.currentAmount)} / ${brl.format(goal.targetAmount)}</strong>
-        <div style="background: #e2e8f0; height: 6px; border-radius: 3px; margin-top: 10px;">
-          <div style="background: ${goal.color}; height: 100%; border-radius: 3px; width: ${progress}%"></div>
-        </div>
-      </div>
-    `;
-  }).join("");
+window.deleteAccount = async id => {
+  if (await openModal("Excluir Conta", "ATENÇÃO: Isso excluirá a conta e ocultará todos os lançamentos atrelados. Continuar?")) {
+    try { await api(`/api/accounts/${id}`, { method: "DELETE" }); showToast("Conta excluída", false); loadDashboard(); } 
+    catch(e) { showToast(e.message, true); }
+  }
+}
+window.editAccount = id => {
+  const acc = state.accounts.find(a => a.id === id);
+  state.editingAccId = id;
+  els.accountForm.name.value = acc.name;
+  els.accountForm.type.value = acc.type;
+  els.accountForm.initialBalance.value = acc.initialBalance;
+  els.accountForm.institutionName.value = acc.institutionName || '';
+  els.accountForm.color.value = acc.color || '#3b82f6';
+  els.accountForm.notes.value = acc.notes || '';
+  els.accountForm.querySelector("button[type=submit]").textContent = "Atualizar";
+  els.cancelAccEdit.classList.remove("hidden");
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-function renderBudgets() {
-  if (!els.budgetsTable) return;
-  els.budgetsTable.innerHTML = state.budgets.map(budget => {
-    const summary = state.categorySummary.find(s => s.categoryId === budget.categoryId);
-    const spent = summary ? summary.total : 0;
-    const progress = Math.min(100, Math.round((spent / budget.amountLimit) * 100)) || 0;
-    const isOver = spent > budget.amountLimit;
-    return `
-      <tr>
-        <td>${escapeHtml(budget.categoryName)}</td>
-        <td class="text-right">${brl.format(spent)} / ${brl.format(budget.amountLimit)}</td>
-        <td class="text-center">
-          <div style="background: #e2e8f0; height: 10px; border-radius: 5px; width: 100%; position: relative;">
-            <div style="background: ${isOver ? 'var(--danger-color)' : 'var(--primary-color)'}; height: 100%; border-radius: 5px; width: ${progress}%"></div>
-          </div>
-        </td>
-      </tr>
-    `;
-  }).join("");
+window.deleteCategory = async id => {
+  if (await openModal("Excluir Categoria", "Deseja remover esta categoria?")) {
+    try { await api(`/api/categories/${id}`, { method: "DELETE" }); showToast("Categoria removida", false); loadDashboard(); } 
+    catch(e) { showToast(e.message, true); }
+  }
+}
+window.editCategory = id => {
+  const cat = state.categories.find(c => c.id === id);
+  state.editingCatId = id;
+  els.categoryForm.name.value = cat.name;
+  els.categoryForm.type.value = cat.type;
+  els.categoryForm.color.value = cat.color || "#6366f1";
+  els.categoryForm.querySelector("button[type=submit]").textContent = "Atualizar";
+  els.cancelCatEdit.classList.remove("hidden");
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-window.deleteTx = async function(id) {
-  if (!confirm("Excluir lançamento?")) return;
-  try {
-    await api(`/api/transactions/${id}`, { method: "DELETE" });
-    await loadDashboard();
-    showToast("Lançamento excluído.");
-  } catch(e) { showToast(e.message); }
+window.deleteCp = async id => {
+  if (await openModal("Remover Pessoa/Empresa", "Deseja remover este registro?")) {
+    try { await api(`/api/counterparties/${id}`, { method: "DELETE" }); showToast("Removido", false); loadDashboard(); } 
+    catch(e) { showToast(e.message, true); }
+  }
 }
 
-function labelTxType(type) {
-  return { INCOME: "Receita", EXPENSE: "Despesa", TRANSFER: "Transferência", ADJUSTMENT: "Ajuste" }[type] || type;
+window.deleteLoan = async id => {
+  if (await openModal("Excluir Dívida", "Deseja remover este registro permanentemente?")) {
+    try { await api(`/api/loans/${id}`, { method: "DELETE" }); loadDashboard(); } catch(e) { showToast(e.message, true); }
+  }
 }
 
-// Events
-els.loginForm.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  try {
-    const res = await api("/api/auth/login", { method: "POST", body: JSON.stringify(serialize(els.loginForm)) });
-    setSession(res.data);
-    await loadDashboard();
-  } catch (err) { showToast(err.message); }
-});
-
-els.signupForm.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  try {
-    const res = await api("/api/auth/signup", { method: "POST", body: JSON.stringify(serialize(els.signupForm)) });
-    setSession(res.data);
-    await loadDashboard();
-  } catch (err) { showToast(err.message); }
-});
-
-els.accountForm.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const data = serialize(els.accountForm);
-  try {
-    await api("/api/accounts", {
-      method: "POST",
-      body: JSON.stringify({ ...data, currency: "BRL", initialBalance: Number(data.initialBalance||0) })
-    });
-    els.accountForm.reset();
-    await loadDashboard();
-    showToast("Conta salva.");
-  } catch (err) { showToast(err.message); }
-});
-
-els.categoryForm.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const data = serialize(els.categoryForm);
-  try {
-    await api("/api/categories", { method: "POST", body: JSON.stringify(data) });
-    els.categoryForm.reset();
-    await loadDashboard();
-    showToast("Categoria salva.");
-  } catch (err) { showToast(err.message); }
-});
-
-els.transactionForm.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const data = serialize(els.transactionForm);
-  try {
-    const payload = {
-      accountId: Number(data.accountId),
-      destinationAccountId: data.destinationAccountId ? Number(data.destinationAccountId) : null,
-      type: data.type,
-      amount: Number(data.amount),
-      transactionDate: data.transactionDate,
-      description: data.description,
-      categoryId: data.categoryId ? Number(data.categoryId) : null,
-      metadata: data.metadata || null
-    };
-    await api("/api/transactions", { method: "POST", body: JSON.stringify(payload) });
-    els.transactionForm.reset();
-    els.transactionForm.transactionDate.valueAsDate = new Date();
-    await loadDashboard();
-    showToast("Lançamento salvo.");
-  } catch (err) { showToast(err.message); }
-});
-
-if (els.loanForm) {
-  els.loanForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const data = serialize(els.loanForm);
+window.payLoan = async id => {
+  const amountStr = await openModal("Pagamento de Empréstimo", "Informe o valor do pagamento:", { type: "number", label: "Valor (R$)" });
+  if (!amountStr) return;
+  const amount = Number(amountStr);
+  if (amount > 0) {
     try {
-      const payload = {
-        name: data.name,
-        loanType: data.loanType,
-        principalAmount: Number(data.principalAmount),
-        startDate: data.startDate,
-        endDate: data.endDate || null,
-        interestRate: data.interestRate ? Number(data.interestRate) : null
-      };
-      await api("/api/loans", { method: "POST", body: JSON.stringify(payload) });
-      els.loanForm.reset();
+      const today = new Date().toISOString().split('T')[0];
+      await api(`/api/loans/${id}/movements`, { 
+        method: "POST", 
+        body: JSON.stringify({ type: "PAYMENT", amount, movementDate: today, description: "Pagamento" }) 
+      });
+      showToast("Pagamento registrado!", false);
+      loadDashboard();
+    } catch(e) { showToast(e.message, true); }
+  }
+}
+
+window.depositGoal = async id => {
+  const amountStr = await openModal("Depositar na Meta", "Informe o valor a ser guardado para esta meta:", { type: "number", label: "Valor (R$)" });
+  if (!amountStr) return;
+  const amount = Number(amountStr);
+  if (amount > 0) {
+    try {
+      await api(`/api/planning/goals/${id}/deposit`, { method: "PATCH", body: JSON.stringify({ amount }) });
+      showToast("Depósito registrado!", false);
+      loadDashboard();
+    } catch(e) { showToast(e.message, true); }
+  }
+}
+
+window.confirmImport = async id => {
+  if (await openModal("Confirmar Importação", "Deseja efetivar todos os registros válidos no Livro Razão?")) {
+    try {
+      await api(`/api/imports/${id}/confirm`, { method: "POST" });
+      showToast("Importação concluída!", false);
+      loadDashboard();
+    } catch(e) { showToast(e.message, true); }
+  }
+}
+
+window.cancelImport = async id => {
+  if (await openModal("Cancelar Importação", "Deseja descartar este lote de importação?")) {
+    try {
+      await api(`/api/imports/${id}/cancel`, { method: "POST" });
+      showToast("Importação cancelada.", false);
+      loadDashboard();
+    } catch(e) { showToast(e.message, true); }
+  }
+}
+
+// ==========================================
+// FORM SUBMITS
+// ==========================================
+function bindForm(form, endpoint, methodObj) {
+  if(!form) return;
+  form.addEventListener("submit", async e => {
+    e.preventDefault();
+    const btn = form.querySelector('button[type="submit"]');
+    toggleButtonLoading(btn, true);
+    try {
+      let url = endpoint;
+      let method = methodObj.method || "POST";
+      
+      // Handle dynamic updates
+      if (form.id === 'transactionForm' && state.editingTxId) { url = `/api/transactions/${state.editingTxId}`; method = "PUT"; }
+      if (form.id === 'accountForm' && state.editingAccId) { url = `/api/accounts/${state.editingAccId}`; method = "PUT"; }
+      if (form.id === 'categoryForm' && state.editingCatId) { url = `/api/categories/${state.editingCatId}`; method = "PUT"; }
+
+      const body = methodObj.bodyBuilder ? methodObj.bodyBuilder(serialize(form)) : serialize(form);
+      const res = await api(url, { method, body: JSON.stringify(body) });
+      
+      form.reset();
+      
+      // Reset edit states
+      if (form.id === 'transactionForm') { resetTxForm(); form.transactionDate.valueAsDate = new Date(); }
+      if (form.id === 'accountForm') { state.editingAccId = null; els.cancelAccEdit.classList.add('hidden'); btn.textContent = "Salvar Conta"; }
+      if (form.id === 'categoryForm') { state.editingCatId = null; els.cancelCatEdit.classList.add('hidden'); btn.textContent = "Salvar Categoria"; }
+      
+      if(res.message) showToast(res.message, false);
       await loadDashboard();
-      showToast("Empréstimo salvo com sucesso.");
-    } catch (err) { showToast(err.message); }
+    } catch (err) {
+      form.querySelectorAll('.field-error').forEach(e => e.classList.remove('field-error'));
+      if (err.details && Array.isArray(err.details)) {
+        err.details.forEach(d => {
+          const input = form.querySelector(`[name="${d.field}"]`);
+          if (input) input.classList.add('field-error');
+        });
+        showToast(err.message + " (Verifique os campos destacados)", true);
+      } else {
+        showToast(err.message, true);
+      }
+    } finally {
+      toggleButtonLoading(btn, false);
+    }
   });
 }
 
-els.importForm.addEventListener("submit", async (e) => {
+function resetTxForm() {
+  state.editingTxId = null;
+  document.getElementById("txFormTitle").textContent = "Novo Lançamento";
+  document.getElementById("btnSaveTx").textContent = "Salvar Lançamento";
+  els.cancelEditButton.classList.add("hidden");
+  els.transactionForm.reset();
+}
+
+els.cancelEditButton?.addEventListener("click", resetTxForm);
+els.cancelAccEdit?.addEventListener("click", () => { state.editingAccId=null; els.accountForm.reset(); els.cancelAccEdit.classList.add("hidden"); els.accountForm.querySelector("button[type=submit]").textContent = "Salvar Conta"; });
+els.cancelCatEdit?.addEventListener("click", () => { state.editingCatId=null; els.categoryForm.reset(); els.cancelCatEdit.classList.add("hidden"); els.categoryForm.querySelector("button[type=submit]").textContent = "Salvar Categoria"; });
+
+bindForm(els.loginForm, "/api/auth/login", { method: "POST" }, true);
+bindForm(els.signupForm, "/api/auth/signup", { method: "POST" }, true);
+els.loginForm.addEventListener('submit', async e => {
+  e.preventDefault(); toggleButtonLoading(els.loginForm.querySelector('button'), true);
+  try { const res = await api("/api/auth/login", { method: "POST", body: JSON.stringify(serialize(els.loginForm)) }); setSession(res.data); await loadDashboard(); } 
+  catch (err) { showToast(err.message, true); } finally { toggleButtonLoading(els.loginForm.querySelector('button'), false); }
+});
+els.signupForm.addEventListener('submit', async e => {
+  e.preventDefault(); toggleButtonLoading(els.signupForm.querySelector('button'), true);
+  try { const res = await api("/api/auth/signup", { method: "POST", body: JSON.stringify(serialize(els.signupForm)) }); setSession(res.data); await loadDashboard(); } 
+  catch (err) { showToast(err.message, true); } finally { toggleButtonLoading(els.signupForm.querySelector('button'), false); }
+});
+
+bindForm(els.accountForm, "/api/accounts", { bodyBuilder: d => ({ ...d, currency: "BRL", initialBalance: Number(d.initialBalance||0) }) });
+bindForm(els.importForm, "/api/imports/csv", { method: "POST", bodyBuilder: data => {
+  const fd = new FormData();
+  fd.append("accountId", data.accountId);
+  fd.append("file", els.importForm.file.files[0]);
+  return fd;
+}});
+bindForm(els.goalForm, "/api/planning/goals", { method: "POST" });
+bindForm(els.budgetForm, "/api/planning/budgets", { method: "POST" });
+bindForm(els.profileForm, "/api/users/profile", { method: "PUT" });
+bindForm(els.preferencesForm, "/api/users/preferences", { method: "PUT" });
+bindForm(els.categoryForm, "/api/categories", { bodyBuilder: d => d });
+bindForm(els.counterpartyForm, "/api/counterparties", { bodyBuilder: d => d });
+bindForm(els.tagForm, "/api/tags", { bodyBuilder: d => d });
+bindForm(els.budgetForm, "/api/planning/budgets", { bodyBuilder: d => ({...d, categoryId: Number(d.categoryId), amountLimit: Number(d.amountLimit)}) });
+bindForm(els.loanForm, "/api/loans", { method: "POST", bodyBuilder: d => ({
+  ...d, 
+  principalAmount: Number(d.principalAmount), 
+  interestRate: d.interestRate ? Number(d.interestRate) : null,
+  counterpartyId: d.counterpartyId ? Number(d.counterpartyId) : null
+}) });
+
+els.transactionForm.addEventListener("submit", async e => {
   e.preventDefault();
+  const btn = document.getElementById("btnSaveTx");
+  toggleButtonLoading(btn, true);
   try {
-    await api("/api/imports/csv", { method: "POST", body: new FormData(els.importForm) });
-    els.importForm.reset();
+    const data = serialize(els.transactionForm);
+    const payload = {
+      accountId: Number(data.accountId),
+      destinationAccountId: data.destinationAccountId ? Number(data.destinationAccountId) : null,
+      type: data.type, amount: Number(data.amount), transactionDate: data.transactionDate,
+      description: data.description, categoryId: data.categoryId ? Number(data.categoryId) : null,
+      counterpartyId: data.counterpartyId ? Number(data.counterpartyId) : null,
+      status: data.status
+    };
+    
+    let url = state.editingTxId ? `/api/transactions/${state.editingTxId}` : "/api/transactions";
+    let method = state.editingTxId ? "PUT" : "POST";
+    
+    await api(url, { method, body: JSON.stringify(payload) });
+    resetTxForm();
+    els.transactionForm.transactionDate.valueAsDate = new Date();
     await loadDashboard();
-    showToast("Arquivo enviado.");
-  } catch (err) { showToast(err.message); }
+    showToast("Lançamento salvo!", false);
+  } catch(e) { showToast(e.message, true); } finally { toggleButtonLoading(btn, false); }
 });
 
-els.searchInput.addEventListener("input", () => {
-  state.search = els.searchInput.value;
-  renderTransactions();
+els.importForm.addEventListener("submit", async e => {
+  e.preventDefault();
+  const btn = els.importForm.querySelector('button[type="submit"]');
+  toggleButtonLoading(btn, true);
+  try { await api("/api/imports/csv", { method: "POST", body: new FormData(els.importForm) }); els.importForm.reset(); await loadDashboard(); showToast("Enviado!", false); } 
+  catch (err) { showToast(err.message, true); } finally { toggleButtonLoading(btn, false); }
 });
 
-els.refreshButton.addEventListener("click", () => loadDashboard());
+// Filters
+els.searchInput.addEventListener("input", e => { state.filters.search = e.target.value; renderTransactions(); });
+els.filterType?.addEventListener('change', e => { state.filters.type = e.target.value; loadDashboard(); });
+els.filterAccount?.addEventListener('change', e => { state.filters.accountId = e.target.value; loadDashboard(); });
+document.getElementById('filterStatus')?.addEventListener('change', e => { state.filters.status = e.target.value; loadDashboard(); });
+document.getElementById('filterStartDate')?.addEventListener('change', e => { state.filters.startDate = e.target.value; loadDashboard(); });
+document.getElementById('filterEndDate')?.addEventListener('change', e => { state.filters.endDate = e.target.value; loadDashboard(); });
+document.getElementById('btnPrevPage')?.addEventListener('click', () => { if(state.filters.page > 0) { state.filters.page--; loadDashboard(); } });
+document.getElementById('btnNextPage')?.addEventListener('click', () => { if(state.txPageInfo && state.filters.page < state.txPageInfo.totalPages - 1) { state.filters.page++; loadDashboard(); } });
+document.getElementById('btnExportCsv')?.addEventListener('click', () => {
+  if (!state.transactions || state.transactions.length === 0) return showToast("Nenhum dado para exportar.", true);
+  
+  const headers = "ID,Data,Descrição,Conta,Categoria,Tipo,Status,Valor\n";
+  const rows = state.transactions.map(tx => {
+    return [
+      tx.id,
+      tx.transactionDate,
+      `"${(tx.description || '').replace(/"/g, '""')}"`,
+      `"${(tx.accountName || '').replace(/"/g, '""')}"`,
+      `"${(tx.categoryName || '').replace(/"/g, '""')}"`,
+      tx.type,
+      tx.status,
+      tx.amount
+    ].join(",");
+  }).join("\n");
+  
+  const blob = new Blob([headers + rows], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.setAttribute("href", url);
+  link.setAttribute("download", `extrato_${new Date().toISOString().split('T')[0]}.csv`);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+});
+els.searchInput?.addEventListener('keyup', e => { 
+  clearTimeout(state.searchTimer);
+  state.searchTimer = setTimeout(() => { state.filters.search = e.target.value; loadDashboard(); }, 500);
+});
+
+// Keyboard Shortcuts
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+  if (e.altKey && e.key === 'n') {
+    e.preventDefault();
+    document.querySelector('a[href="#ledger"]').click();
+    setTimeout(() => els.transactionForm.amount.focus(), 100);
+  }
+  if (e.altKey && e.key === 's') {
+    e.preventDefault();
+    els.searchInput.focus();
+  }
+});
+
 els.logoutButton.addEventListener("click", clearSession);
 
-function escapeHtml(value) {
-  return String(value ?? "").replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[m]);
-}
+function escapeHtml(val) { return String(val ?? "").replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[m]); }
+function labelTxType(t) { return { INCOME: "Receita", EXPENSE: "Despesa", TRANSFER: "Transfer.", ADJUSTMENT: "Ajuste" }[t] || t; }
 
 renderShell();
 if(els.transactionForm) els.transactionForm.transactionDate.valueAsDate = new Date();
-if (state.token) {
-  loadDashboard().catch(e => { showToast(e.message); clearSession(); });
+if(state.token) loadDashboard().catch(e => { showToast(e.message, true); clearSession(); });
+
+// ==========================================
+// AI ASSISTANT (OLLAMA)
+// ==========================================
+function addAiMessage(text, isUser = false) {
+  const div = document.createElement("div");
+  div.className = `ai-message ${isUser ? 'user-message' : 'system-message'}`;
+  
+  let formattedText;
+  if (isUser) {
+    formattedText = escapeHtml(text);
+  } else {
+    // Parse markdown-like formatting for AI responses
+    formattedText = escapeHtml(text)
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/^### (.+)$/gm, '<h4 style="margin:0.5rem 0 0.25rem;color:var(--primary)">$1</h4>')
+      .replace(/^## (.+)$/gm, '<h3 style="margin:0.75rem 0 0.25rem;color:var(--primary)">$1</h3>')
+      .replace(/^(\d+)\. (.+)$/gm, '<div style="margin-left:1rem;padding:0.15rem 0">$1. $2</div>')
+      .replace(/^- (.+)$/gm, '<div style="margin-left:1rem;padding:0.15rem 0">• $1</div>')
+      .replace(/\n/g, '<br>');
+
+    // Handle <think> tags (reasoning models) — should already be cleaned by backend
+    if (formattedText.includes('&lt;think&gt;')) {
+      formattedText = formattedText.replace(/&lt;think&gt;([\s\S]*?)&lt;\/think&gt;/g, 
+        '<details class="ai-thought"><summary>Raciocínio da IA</summary><div class="thought-content">$1</div></details>');
+    }
+  }
+
+  div.innerHTML = `<strong>${isUser ? 'Você' : 'FinOS Advisor'}:</strong> ${formattedText}`;
+  els.aiChatContainer.appendChild(div);
+  els.aiChatContainer.scrollTop = els.aiChatContainer.scrollHeight;
 }
+
+async function generateAiInsights() {
+  const btn = document.getElementById("btnAiInsights");
+  toggleButtonLoading(btn, true);
+  addAiMessage("Gerando relatório geral com base no seu mês atual...", true);
+  
+  const loadingDiv = document.createElement("div");
+  loadingDiv.className = "ai-message system-message";
+  loadingDiv.innerHTML = `<strong>FinOS Advisor:</strong> <span class="ai-typing">Analisando dados...</span>`;
+  els.aiChatContainer.appendChild(loadingDiv);
+  els.aiChatContainer.scrollTop = els.aiChatContainer.scrollHeight;
+
+  try {
+    const res = await api("/api/ai/insights");
+    loadingDiv.remove();
+    addAiMessage(res.data?.response || "Relatório concluído.", false);
+  } catch (err) {
+    loadingDiv.remove();
+    addAiMessage(`❌ ${err.message}`, false);
+  } finally {
+    toggleButtonLoading(btn, false);
+  }
+}
+
+window.askAiQuestion = async function(presetQuestion = null) {
+  const input = els.aiChatInput;
+  const question = presetQuestion || input.value.trim();
+  if (!question) return;
+
+  if (!presetQuestion) input.value = '';
+  addAiMessage(question, true);
+  
+  const btn = els.btnAiSend;
+  toggleButtonLoading(btn, true);
+
+  const loadingDiv = document.createElement("div");
+  loadingDiv.className = "ai-message system-message";
+  loadingDiv.innerHTML = `<strong>FinOS Advisor:</strong> <span class="ai-typing">Pensando...</span>`;
+  els.aiChatContainer.appendChild(loadingDiv);
+  els.aiChatContainer.scrollTop = els.aiChatContainer.scrollHeight;
+
+  try {
+    const res = await api("/api/ai/chat", {
+      method: "POST",
+      body: JSON.stringify({ question })
+    });
+    loadingDiv.remove();
+    addAiMessage(res.data?.response || "Concluído.", false);
+  } catch (err) {
+    loadingDiv.remove();
+    addAiMessage(`❌ ${err.message}`, false);
+  } finally {
+    toggleButtonLoading(btn, false);
+  }
+}
+
+document.getElementById('aiChatForm')?.addEventListener('submit', function(e) {
+  e.preventDefault();
+  askAiQuestion();
+});
+
+// ==========================================
+// INTERACTIVE TUTORIAL SYSTEM
+// ==========================================
+(function() {
+  const TUTORIAL_STEPS = [
+    {
+      target: null,
+      section: null,
+      title: "🎉 Bem-vindo ao FinOS!",
+      desc: "Este tutorial interativo vai te ensinar a usar o sistema na prática. Clique em 'Começar' e faça o que for pedido na tela. Vamos começar?",
+      tip: "Você pode fechar e continuar o tutorial a qualquer momento pela barra lateral."
+    },
+    {
+      target: ".sidebar-nav a[href='#accounts']",
+      section: null,
+      title: "1. Acesse suas Contas",
+      desc: "Primeiro, clique em 'Minhas Contas' no menu lateral para cadastrar suas contas bancárias.",
+      waitForEvent: "hashchange_accounts"
+    },
+    {
+      target: "#accountForm",
+      section: "accounts",
+      title: "2. Crie uma Conta",
+      desc: "Vamos criar sua primeira conta. Preencha os campos 'Nome' (ex: Santander), selecione 'Conta Corrente' e clique em Salvar Conta.",
+      waitForApi: "/api/accounts"
+    },
+    {
+      target: ".sidebar-nav a[href='#ledger']",
+      section: "accounts",
+      title: "3. Registre uma Movimentação",
+      desc: "Ótimo! Agora que você tem uma conta, clique em 'Receitas e Despesas' no menu lateral para registrar uma entrada de dinheiro.",
+      waitForEvent: "hashchange_ledger"
+    },
+    {
+      target: "#transactionForm",
+      section: "ledger",
+      title: "4. Registre seu primeiro dinheiro",
+      desc: "Preencha o formulário para adicionar dinheiro à sua conta. Coloque o valor de R$ 1000,00, selecione sua conta recém-criada e clique em Salvar.",
+      waitForApi: "/api/transactions"
+    },
+    {
+      target: ".sidebar-nav a[href='#overview']",
+      section: "ledger",
+      title: "5. Veja o Painel",
+      desc: "Perfeito! Agora clique em 'Visão Geral' para ver o seu painel de indicadores atualizado com o seu novo saldo.",
+      waitForEvent: "hashchange_overview"
+    },
+    {
+      target: "#section-overview .metrics-grid",
+      section: "overview",
+      title: "🚀 Tudo Certo!",
+      desc: "Parabéns! Você já sabe o básico do FinOS. Seu saldo já está atualizado. Continue explorando: registre despesas, crie metas de economia, importe extratos bancários, ou pergunte ao Assistente IA.",
+      tip: "Lembre-se: use Alt+N de qualquer lugar para criar um novo lançamento rápido!"
+    }
+  ];
+
+  const overlay = document.getElementById("tutorialOverlay");
+  const highlight = document.getElementById("tutorialHighlight");
+  const tooltip = document.getElementById("tutorialTooltip");
+  const titleEl = document.getElementById("tutorialTitle");
+  const descEl = document.getElementById("tutorialDesc");
+  const tipEl = document.getElementById("tutorialTip");
+  const badgeEl = document.getElementById("tutorialStepBadge");
+  const progressBar = document.getElementById("tutorialProgressBar");
+  const prevBtn = document.getElementById("tutorialPrevBtn");
+  const nextBtn = document.getElementById("tutorialNextBtn");
+  const closeBtn = document.getElementById("tutorialCloseBtn");
+  const startBtn = document.getElementById("btnStartTutorial");
+  const backdrop = document.getElementById("tutorialBackdrop");
+
+  let currentStep = 0;
+
+  function startTutorial() {
+    currentStep = 0;
+    overlay.classList.remove("hidden");
+    document.body.style.overflow = "hidden";
+    renderStep();
+  }
+
+  function endTutorial() {
+    overlay.classList.add("hidden");
+    document.body.style.overflow = "";
+    highlight.style.display = "none";
+    localStorage.setItem("finos_tutorial_seen", "true");
+  }
+
+  function navigateToSection(sectionName) {
+    if (!sectionName) return;
+    const navLink = document.querySelector(`a.nav-item[href="#${sectionName}"]`);
+    if (navLink) {
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      navLink.classList.add('active');
+      document.querySelectorAll('.view-section').forEach(s => s.classList.add('hidden'));
+      const sectionEl = document.getElementById('section-' + sectionName);
+      if (sectionEl) sectionEl.classList.remove('hidden');
+      const pageTitleEl = document.getElementById('pageTitle');
+      if (pageTitleEl) pageTitleEl.textContent = navLink.textContent.trim();
+    }
+  }
+
+  function checkStepCondition() {
+    const step = TUTORIAL_STEPS[currentStep];
+    if (!step) return;
+    // Always show the next button so users can skip interactive parts
+    nextBtn.style.display = "block";
+  }
+
+  function renderStep() {
+    const step = TUTORIAL_STEPS[currentStep];
+    const total = TUTORIAL_STEPS.length;
+
+    // Update text
+    titleEl.textContent = step.title;
+    descEl.textContent = step.desc;
+    badgeEl.textContent = `${currentStep + 1} / ${total}`;
+    progressBar.style.width = `${((currentStep + 1) / total) * 100}%`;
+
+    // Tip
+    if (step.tip) {
+      tipEl.textContent = step.tip;
+      tipEl.classList.add("visible");
+    } else {
+      tipEl.classList.remove("visible");
+    }
+
+    // Buttons
+    prevBtn.style.visibility = currentStep === 0 ? "hidden" : "visible";
+    nextBtn.textContent = currentStep === total - 1 ? "Concluir ✓" : (currentStep === 0 ? "Começar" : "Próximo →");
+    checkStepCondition();
+
+    // Navigate to section automatically to support "Next" skipping
+    if (step.section) {
+      navigateToSection(step.section);
+    }
+
+    // Highlight target element
+    if (step.target) {
+      const targetEl = document.querySelector(step.target);
+      if (targetEl) {
+        targetEl.scrollIntoView({ behavior: "smooth", block: "center" });
+        setTimeout(() => positionHighlightAndTooltip(targetEl), 350);
+        
+        // Add a pulsing glow class to the target element to encourage clicking
+        document.querySelectorAll('.tutorial-pulse').forEach(e => e.classList.remove('tutorial-pulse'));
+        targetEl.classList.add('tutorial-pulse');
+      } else {
+        showCentered();
+      }
+    } else {
+      showCentered();
+    }
+  }
+
+  function positionHighlightAndTooltip(targetEl) {
+    const rect = targetEl.getBoundingClientRect();
+    const pad = 10;
+    highlight.style.display = "block";
+    highlight.style.top = (rect.top - pad) + "px";
+    highlight.style.left = (rect.left - pad) + "px";
+    highlight.style.width = (rect.width + pad * 2) + "px";
+    highlight.style.height = (rect.height + pad * 2) + "px";
+
+    const tooltipWidth = Math.min(420, window.innerWidth - 32);
+    const tooltipHeight = tooltip.offsetHeight || 280;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+
+    let top, left;
+    if (rect.bottom + pad + tooltipHeight + 20 < vh) top = rect.bottom + pad + 16;
+    else if (rect.top - pad - tooltipHeight - 16 > 0) top = rect.top - pad - tooltipHeight - 16;
+    else top = Math.max(16, (vh - tooltipHeight) / 2);
+
+    left = rect.left + (rect.width / 2) - (tooltipWidth / 2);
+    left = Math.max(16, Math.min(left, vw - tooltipWidth - 16));
+
+    tooltip.style.top = top + "px";
+    tooltip.style.left = left + "px";
+    tooltip.style.animation = "none";
+    tooltip.offsetHeight;
+    tooltip.style.animation = "tutorialSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)";
+  }
+
+  function showCentered() {
+    highlight.style.display = "none";
+    document.querySelectorAll('.tutorial-pulse').forEach(e => e.classList.remove('tutorial-pulse'));
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const tooltipWidth = Math.min(420, vw - 32);
+    const tooltipHeight = tooltip.offsetHeight || 300;
+
+    tooltip.style.top = Math.max(60, (vh - tooltipHeight) / 2) + "px";
+    tooltip.style.left = Math.max(16, (vw - tooltipWidth) / 2) + "px";
+    tooltip.style.animation = "none";
+    tooltip.offsetHeight;
+    tooltip.style.animation = "tutorialSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)";
+  }
+
+  function goNext() {
+    if (currentStep < TUTORIAL_STEPS.length - 1) {
+      currentStep++;
+      renderStep();
+    } else {
+      endTutorial();
+      showToast("Tutorial concluído! 🎓 Agora explore o sistema à vontade.", false);
+    }
+  }
+
+  function goPrev() {
+    if (currentStep > 0) {
+      currentStep--;
+      renderStep();
+    }
+  }
+
+  // Event listeners
+  if (startBtn) startBtn.addEventListener("click", startTutorial);
+  if (nextBtn) nextBtn.addEventListener("click", goNext);
+  if (prevBtn) prevBtn.addEventListener("click", goPrev);
+  if (closeBtn) closeBtn.addEventListener("click", endTutorial);
+
+  // Allow clicking outside highlight to always close the tutorial
+  if (backdrop) backdrop.addEventListener("click", () => {
+    endTutorial();
+  });
+
+  // Handle Event-Driven progression
+  window.addEventListener("hashchange", () => {
+    if (overlay.classList.contains("hidden")) return;
+    const step = TUTORIAL_STEPS[currentStep];
+    const hash = window.location.hash.substring(1);
+    if (step && step.waitForEvent === "hashchange_" + hash) {
+       goNext();
+    }
+  });
+
+  window.addEventListener("finos_api_action", (e) => {
+    if (overlay.classList.contains("hidden")) return;
+    const step = TUTORIAL_STEPS[currentStep];
+    if (step && step.waitForApi && e.detail.method === "POST" && e.detail.path.includes(step.waitForApi)) {
+       goNext();
+    }
+  });
+
+  document.addEventListener("keydown", e => {
+    if (overlay.classList.contains("hidden")) return;
+    const step = TUTORIAL_STEPS[currentStep];
+    if (e.key === "Escape") endTutorial();
+    // Only allow keyboard next if no waiting condition
+    if ((e.key === "ArrowRight" || e.key === "Enter") && (!step.waitForEvent && !step.waitForApi)) goNext();
+    if (e.key === "ArrowLeft") goPrev();
+  });
+
+  window.startTutorial = startTutorial;
+})();

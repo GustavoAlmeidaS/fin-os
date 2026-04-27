@@ -31,6 +31,7 @@ public record TransactionResponse(
         Long importBatchId,
         String metadata,
         RecurrenceFrequency recurrenceFrequency,
-        LocalDate recurrenceEndDate
+        LocalDate recurrenceEndDate,
+        Long cardId
 ) {
 }

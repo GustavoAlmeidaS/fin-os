@@ -30,4 +30,10 @@ public class CounterpartyController {
     public ApiResponse<CounterpartyResponse> create(@Valid @RequestBody CreateCounterpartyRequest request) {
         return ApiResponse.ok("Contraparte cadastrada com sucesso.", counterpartyService.create(request));
     }
+
+    @org.springframework.web.bind.annotation.DeleteMapping("/{id}")
+    public ApiResponse<Void> delete(@org.springframework.web.bind.annotation.PathVariable Long id) {
+        counterpartyService.delete(id);
+        return ApiResponse.ok("Contraparte removida com sucesso.", null);
+    }
 }

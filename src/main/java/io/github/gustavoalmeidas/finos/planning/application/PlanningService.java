@@ -74,4 +74,13 @@ public class PlanningService {
         budget.setActive(true);
         return mapper.toBudgetResponse(budgetRepository.save(budget));
     }
+
+    @Transactional
+    public GoalResponse depositToGoal(Long goalId, java.math.BigDecimal amount) {
+        User user = userService.currentUser();
+        Goal goal = goalRepository.findByIdAndUser(goalId, user)
+                .orElseThrow(() -> new io.github.gustavoalmeidas.finos.shared.exception.NotFoundException("planning.goal.not-found", "Meta não encontrada."));
+        goal.setCurrentAmount(goal.getCurrentAmount().add(amount));
+        return mapper.toGoalResponse(goalRepository.save(goal));
+    }
 }

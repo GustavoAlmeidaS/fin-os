@@ -48,4 +48,11 @@ public class CounterpartyService {
         return counterpartyRepository.findByIdAndUser(id, user)
                 .orElseThrow(() -> new NotFoundException("ledger.counterparty.not-found", "Contraparte não encontrada."));
     }
+
+    @Transactional
+    public void delete(Long id) {
+        Counterparty counterparty = getOwnedEntity(id);
+        counterparty.setDeletedAt(java.time.LocalDateTime.now());
+        counterpartyRepository.save(counterparty);
+    }
 }

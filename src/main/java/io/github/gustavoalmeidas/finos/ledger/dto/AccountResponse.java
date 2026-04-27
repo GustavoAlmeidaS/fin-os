@@ -14,6 +14,7 @@ public record AccountResponse(
         boolean active,
         String institutionName,
         String color,
-        String notes
+        String notes,
+        java.util.List<CardResponse> cards
 ) {
 }

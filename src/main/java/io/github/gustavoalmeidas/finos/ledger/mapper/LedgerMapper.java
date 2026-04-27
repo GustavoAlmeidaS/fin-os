@@ -12,6 +12,9 @@ import io.github.gustavoalmeidas.finos.ledger.dto.CounterpartyResponse;
 import io.github.gustavoalmeidas.finos.ledger.dto.TagResponse;
 import io.github.gustavoalmeidas.finos.ledger.dto.TransactionResponse;
 import io.github.gustavoalmeidas.finos.ledger.dto.TransactionSplitResponse;
+import io.github.gustavoalmeidas.finos.ledger.dto.TransactionSplitResponse;
+import io.github.gustavoalmeidas.finos.ledger.dto.CardResponse;
+import io.github.gustavoalmeidas.finos.ledger.domain.Card;
 import org.springframework.stereotype.Component;
 
 import java.util.Comparator;
@@ -34,7 +37,8 @@ public class LedgerMapper {
                 account.isActive(),
                 account.getInstitutionName(),
                 account.getColor(),
-                account.getNotes()
+                account.getNotes(),
+                toCardResponses(account.getCards())
         );
     }
 
@@ -70,10 +74,11 @@ public class LedgerMapper {
                 toCounterpartyResponse(transaction.getCounterparty()),
                 toTagResponses(transaction.getTags()),
                 toSplitResponses(transaction.getSplits()),
-                transaction.getImportBatchId(),
+                transaction.getImportBatch() != null ? transaction.getImportBatch().getId() : null,
                 transaction.getMetadata(),
                 transaction.getRecurrenceFrequency(),
-                transaction.getRecurrenceEndDate()
+                transaction.getRecurrenceEndDate(),
+                transaction.getCard() == null ? null : transaction.getCard().getId()
         );
     }
 
@@ -111,5 +116,23 @@ public class LedgerMapper {
                         split.getDescription()
                 ))
                 .toList();
+    }
+
+    public CardResponse toCardResponse(Card card) {
+        return new CardResponse(
+                card.getId(),
+                card.getAccount().getId(),
+                card.getName(),
+                card.getType(),
+                card.getCreditLimit(),
+                card.getClosingDay(),
+                card.getDueDay(),
+                card.isActive()
+        );
+    }
+
+    private List<CardResponse> toCardResponses(List<Card> cards) {
+        if (cards == null) return List.of();
+        return cards.stream().map(this::toCardResponse).toList();
     }
 }
