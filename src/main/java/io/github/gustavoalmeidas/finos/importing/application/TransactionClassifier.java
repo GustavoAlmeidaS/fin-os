@@ -12,9 +12,15 @@ import java.util.Optional;
 public class TransactionClassifier {
 
     private final ClassificationRuleRepository ruleRepository;
+    private final io.github.gustavoalmeidas.finos.ledger.infrastructure.TransactionRepository transactionRepository;
+    private final io.github.gustavoalmeidas.finos.ledger.infrastructure.CategoryRepository categoryRepository;
 
-    public TransactionClassifier(ClassificationRuleRepository ruleRepository) {
+    public TransactionClassifier(ClassificationRuleRepository ruleRepository,
+                                 io.github.gustavoalmeidas.finos.ledger.infrastructure.TransactionRepository transactionRepository,
+                                 io.github.gustavoalmeidas.finos.ledger.infrastructure.CategoryRepository categoryRepository) {
         this.ruleRepository = ruleRepository;
+        this.transactionRepository = transactionRepository;
+        this.categoryRepository = categoryRepository;
     }
 
     /**
@@ -34,6 +40,13 @@ public class TransactionClassifier {
             if (searchableDescription.contains(rule.getKeyword().toLowerCase())) {
                 return Optional.of(rule.getCategory());
             }
+        }
+
+        // HISTORICAL VOTING ENGINE:
+        // If no explicit rule matched, look for the most frequently used category for this exact description
+        List<Long> frequentCatIds = transactionRepository.findMostFrequentCategoryIdByDescription(userId, searchableDescription);
+        if (frequentCatIds != null && !frequentCatIds.isEmpty()) {
+            return categoryRepository.findById(frequentCatIds.get(0));
         }
 
         return Optional.empty();

@@ -34,6 +34,10 @@ public class IdempotencyKeyService {
         return hash(base);
     }
 
+    public String generateProjectedKey(String originalIdempotencyKey, int iteration) {
+        return hash("PROJECTED|" + originalIdempotencyKey + "|" + iteration);
+    }
+
     private String hash(String input) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");

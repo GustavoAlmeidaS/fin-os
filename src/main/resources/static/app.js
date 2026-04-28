@@ -552,6 +552,15 @@ function renderImports() {
           <button class="btn-danger btn-sm" onclick="cancelImport(${imp.id})">Cancelar</button>
         </div>
       `;
+    } else if (imp.status === 'COMPLETED' || imp.status === 'IMPORTED') {
+      actions = `
+        <div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
+          <button class="btn-secondary btn-sm" onclick="reviewBatchWithAi(${imp.id})" title="Enviar lote para revisão da Inteligência Artificial">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" style="vertical-align: middle;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+            Revisar Lote com IA
+          </button>
+        </div>
+      `;
     }
     return `
       <div class="metric-card" style="margin-bottom: 1rem;">
@@ -1255,3 +1264,283 @@ document.getElementById('aiChatForm')?.addEventListener('submit', function(e) {
 
   window.startTutorial = startTutorial;
 })();
+
+// --- AI HITL Review Logic ---
+let aiCategories = [];
+
+window.loadAiSuggestions = async function() {
+  const tableBody = document.getElementById("aiSuggestionsTableBody");
+  if (!tableBody) return;
+  tableBody.innerHTML = "<tr><td colspan='3' style='text-align: center;'>Carregando sugestões...</td></tr>";
+
+  try {
+    // Fetch categories first if not loaded
+    if (aiCategories.length === 0) {
+      const catRes = await api("/api/categories");
+      if (catRes.data) aiCategories = catRes.data;
+    }
+
+    const res = await api("/api/ai/suggestions");
+    if (res.data && res.data.length > 0) {
+      tableBody.innerHTML = res.data.map(s => {
+        // Format amount
+        const amountFormatted = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(s.sampleAmount || 0);
+        // Format date
+        let dateFormatted = "";
+        if (s.sampleDate) {
+          const d = new Date(s.sampleDate + 'T00:00:00');
+          dateFormatted = d.toLocaleDateString('pt-BR');
+        }
+
+        // Category options
+        const optionsHtml = aiCategories.map(c => 
+          `<option value="${c.id}" ${c.id === s.suggestedCategoryId ? 'selected' : ''}>${c.name}</option>`
+        ).join("");
+
+        return `
+        <tr id="ai-row-${s.id}">
+          <td>
+            <div style="font-weight: 500;">${s.sampleRawDescription || s.keyword}</div>
+            <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem;">
+              <span style="display: inline-block; padding: 2px 6px; background: var(--surface-light); border-radius: 4px; margin-right: 6px;">${dateFormatted}</span>
+              <span style="${s.sampleAmount < 0 ? 'color: var(--danger);' : 'color: var(--success);'}">${amountFormatted}</span>
+            </div>
+          </td>
+          <td>
+            <div id="ai-display-${s.id}">
+              <span class="badge" style="background: var(--surface-light); font-size: 0.85rem;">${s.suggestedCategoryName}</span>
+            </div>
+            <div id="ai-edit-${s.id}" class="hidden" style="display: flex; flex-direction: column; gap: 0.5rem;">
+              <select id="ai-select-${s.id}" class="input-field" style="padding: 0.3rem; font-size: 0.85rem;">
+                ${optionsHtml}
+              </select>
+            </div>
+          </td>
+          <td>
+            <div id="ai-actions-${s.id}" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+              <button class="btn-primary btn-sm" onclick="resolveAiSuggestion('${s.id}', true)">✅ Aprovar</button>
+              <button class="btn-secondary btn-sm" onclick="toggleAiEdit('${s.id}')">✏️ Corrigir</button>
+              <button class="btn-secondary btn-sm" onclick="resolveAiSuggestion('${s.id}', false)" style="color: var(--danger);">❌ Rejeitar</button>
+            </div>
+            <div id="ai-save-actions-${s.id}" class="hidden" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+              <button class="btn-primary btn-sm" onclick="saveAiCorrection('${s.id}')">Salvar Correção</button>
+              <button class="btn-secondary btn-sm" onclick="toggleAiEdit('${s.id}')">Cancelar</button>
+            </div>
+          </td>
+        </tr>
+      `}).join("");
+      
+      document.getElementById("btnApproveAllAi").classList.remove("hidden");
+    } else {
+      tableBody.innerHTML = `
+        <tr>
+          <td colspan="3" style="text-align: center; padding: 3rem 1rem;">
+            <div style="font-size: 2.5rem; margin-bottom: 1rem;">✨</div>
+            <h3 style="color: var(--text); margin-bottom: 0.5rem;">Tudo limpo!</h3>
+            <p style="color: var(--text-muted);">Nenhuma sugestão da IA pendente no momento.</p>
+          </td>
+        </tr>`;
+      document.getElementById("btnApproveAllAi").classList.add("hidden");
+    }
+  } catch (err) {
+    showToast("Erro ao carregar sugestões da IA", true);
+  }
+};
+
+window.toggleAiEdit = function(id) {
+  document.getElementById(`ai-display-${id}`).classList.toggle("hidden");
+  document.getElementById(`ai-edit-${id}`).classList.toggle("hidden");
+  document.getElementById(`ai-actions-${id}`).classList.toggle("hidden");
+  document.getElementById(`ai-save-actions-${id}`).classList.toggle("hidden");
+};
+
+window.saveAiCorrection = async function(id) {
+  const select = document.getElementById(`ai-select-${id}`);
+  const overrideCategoryId = select.value;
+  if (!overrideCategoryId) return;
+  
+  await resolveAiSuggestion(id, true, parseInt(overrideCategoryId));
+};
+
+window.resolveAiSuggestion = async function(id, approved, overrideCategoryId = null) {
+  try {
+    const body = { approved };
+    if (overrideCategoryId) {
+      body.overrideCategoryId = overrideCategoryId;
+    }
+    
+    await api(`/api/ai/suggestions/${id}/resolve`, {
+      method: "POST",
+      body: JSON.stringify(body)
+    });
+    showToast(`Sugestão ${approved ? (overrideCategoryId ? 'corrigida ✅' : 'aprovada ✅') : 'rejeitada ❌'} com sucesso!`);
+    loadAiSuggestions();
+  } catch (err) {
+    showToast("Erro ao resolver sugestão", true);
+  }
+};
+
+window.resolveAllAiSuggestions = async function() {
+  const rows = document.querySelectorAll("#aiSuggestionsTableBody tr[id^='ai-row-']");
+  if (rows.length === 0) return;
+  
+  if (!confirm(`Tem certeza que deseja aprovar as ${rows.length} sugestões pendentes?`)) return;
+  
+  showToast("Aprovando sugestões...", false);
+  let successCount = 0;
+  
+  for (const row of rows) {
+    const id = row.id.replace('ai-row-', '');
+    try {
+      await api(`/api/ai/suggestions/${id}/resolve`, {
+        method: "POST",
+        body: JSON.stringify({ approved: true })
+      });
+      successCount++;
+    } catch (e) {
+      console.error("Erro ao aprovar", id, e);
+    }
+  }
+  
+  showToast(`${successCount} sugestões aprovadas com sucesso!`);
+  loadAiSuggestions();
+};
+
+// --- AI Review with Progress Overlay ---
+let aiReviewTimer = null;
+let aiReviewSeconds = 0;
+
+function showAiReviewOverlay() {
+  const overlay = document.getElementById("aiReviewOverlay");
+  const loading = document.getElementById("aiReviewLoading");
+  const result = document.getElementById("aiReviewResult");
+  const statusText = document.getElementById("aiReviewStatusText");
+
+  overlay.classList.remove("hidden");
+  loading.classList.remove("hidden");
+  result.classList.add("hidden");
+
+  // Reset step icons
+  document.getElementById("aiStep1Icon").textContent = "⏳";
+  document.getElementById("aiStep2Icon").textContent = "⬜";
+  document.getElementById("aiStep3Icon").textContent = "⬜";
+
+  aiReviewSeconds = 0;
+  statusText.textContent = "Conectando ao Ollama...";
+
+  // Animate steps over time
+  aiReviewTimer = setInterval(() => {
+    aiReviewSeconds++;
+    const minutes = Math.floor(aiReviewSeconds / 60);
+    const secs = aiReviewSeconds % 60;
+    const timeStr = minutes > 0 ? `${minutes}m ${secs}s` : `${secs}s`;
+
+    if (aiReviewSeconds >= 3) {
+      document.getElementById("aiStep1Icon").textContent = "✅";
+      document.getElementById("aiStep2Icon").textContent = "⏳";
+      statusText.textContent = `Analisando transações com IA local... (${timeStr})`;
+    }
+    if (aiReviewSeconds >= 10) {
+      document.getElementById("aiStep2Icon").textContent = "⏳";
+      statusText.textContent = `Processando padrões de categorização... (${timeStr})`;
+    }
+    if (aiReviewSeconds >= 30) {
+      statusText.textContent = `Modelo processando (isso é normal para IA local)... (${timeStr})`;
+    }
+    if (aiReviewSeconds >= 120) {
+      statusText.textContent = `Quase lá... o modelo está finalizando a análise (${timeStr})`;
+    }
+  }, 1000);
+}
+
+function showAiReviewResult(success, summary, errorMsg) {
+  if (aiReviewTimer) {
+    clearInterval(aiReviewTimer);
+    aiReviewTimer = null;
+  }
+
+  const loading = document.getElementById("aiReviewLoading");
+  const result = document.getElementById("aiReviewResult");
+  const icon = document.getElementById("aiReviewResultIcon");
+  const title = document.getElementById("aiReviewResultTitle");
+  const msg = document.getElementById("aiReviewResultMsg");
+  const details = document.getElementById("aiReviewResultDetails");
+
+  // Complete all steps
+  document.getElementById("aiStep1Icon").textContent = "✅";
+  document.getElementById("aiStep2Icon").textContent = "✅";
+  document.getElementById("aiStep3Icon").textContent = "✅";
+
+  setTimeout(() => {
+    loading.classList.add("hidden");
+    result.classList.remove("hidden");
+
+    if (!success) {
+      icon.textContent = "❌";
+      title.textContent = "Erro na Revisão";
+      msg.textContent = errorMsg || "Ocorreu um erro ao processar a revisão inteligente.";
+      details.innerHTML = `
+        <p style="color: var(--text-muted);">Verifique se o Ollama está rodando e se o modelo <strong>llama3:8b</strong> está instalado.</p>
+        <p style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-muted);">Execute: <code>ollama pull llama3:8b</code></p>
+      `;
+      return;
+    }
+
+    if (summary) {
+      const status = summary.status || "NO_SUGGESTIONS";
+      icon.textContent = status === "SUCCESS" ? "🎉" : status === "PARTIAL" ? "⚡" : "🔍";
+      title.textContent = status === "SUCCESS" ? "Revisão Concluída com Sucesso!" :
+                           status === "PARTIAL" ? "Revisão Parcial" : "Nenhuma Correção Necessária";
+      msg.textContent = summary.message || "";
+
+      details.innerHTML = `
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+          <div style="padding: 0.5rem; background: var(--surface); border-radius: 6px; text-align: center;">
+            <div style="font-size: 1.5rem; font-weight: 700; color: var(--primary);">${summary.totalTransactions || 0}</div>
+            <div style="font-size: 0.8rem; color: var(--text-muted);">Transações Analisadas</div>
+          </div>
+          <div style="padding: 0.5rem; background: var(--surface); border-radius: 6px; text-align: center;">
+            <div style="font-size: 1.5rem; font-weight: 700; color: var(--success);">${summary.suggestionsCreated || 0}</div>
+            <div style="font-size: 0.8rem; color: var(--text-muted);">Regras Sugeridas</div>
+          </div>
+          <div style="padding: 0.5rem; background: var(--surface); border-radius: 6px; text-align: center;">
+            <div style="font-size: 1.5rem; font-weight: 700; color: var(--warning, #f59e0b);">${summary.transactionsUpdated || 0}</div>
+            <div style="font-size: 0.8rem; color: var(--text-muted);">Transações Atualizadas</div>
+          </div>
+          <div style="padding: 0.5rem; background: var(--surface); border-radius: 6px; text-align: center;">
+            <div style="font-size: 1.5rem; font-weight: 700; color: ${summary.categoriesNotFound > 0 ? 'var(--danger)' : 'var(--text-muted)'};">${summary.categoriesNotFound || 0}</div>
+            <div style="font-size: 0.8rem; color: var(--text-muted);">Categorias Não Encontradas</div>
+          </div>
+        </div>
+        ${summary.categoriesNotFound > 0 ? '<p style="margin-top: 0.75rem; font-size: 0.85rem; color: var(--danger);">⚠️ Algumas categorias sugeridas pela IA não existem no seu cadastro. Crie-as em Configurações → Categorias e tente novamente.</p>' : ''}
+        ${summary.suggestionsCreated > 0 ? '<p style="margin-top: 0.75rem; font-size: 0.85rem; color: var(--success);">✅ Clique em "Ver Sugestões da IA" para aprovar as regras de aprendizado!</p>' : ''}
+      `;
+    }
+  }, 600);
+}
+
+window.closeAiReview = function(goToSuggestions) {
+  document.getElementById("aiReviewOverlay").classList.add("hidden");
+  if (goToSuggestions) {
+    window.location.hash = "#ai";
+    setTimeout(() => loadAiSuggestions(), 300);
+  }
+};
+
+window.reviewBatchWithAi = async function(batchId) {
+  showAiReviewOverlay();
+  try {
+    const res = await api(`/api/ai/review-batch/${batchId}`, { method: "POST" });
+    if (res.success && res.data) {
+      showAiReviewResult(true, res.data, null);
+    } else {
+      showAiReviewResult(false, null, res.message || "Erro desconhecido");
+    }
+  } catch (err) {
+    showAiReviewResult(false, null, err.message || "Erro ao conectar com o servidor");
+  }
+};
+
+// Auto-load suggestions if AI tab is opened
+document.querySelector('a[href="#ai"]').addEventListener('click', () => loadAiSuggestions());
+

@@ -41,8 +41,24 @@ class SantanderAccountParserTest {
 
         try (InputStream is = new FileInputStream(filePath.toFile())) {
             List<ImportedTransactionRaw> result = parser.parse(is, ImportContext.builder().build());
-            
             assertTrue(result.size() > 0);
+            
+            org.apache.poi.ss.usermodel.Workbook wb = new org.apache.poi.hssf.usermodel.HSSFWorkbook(new java.io.FileInputStream(filePath.toFile()));
+            org.apache.poi.ss.usermodel.Sheet sheet = wb.getSheetAt(0);
+            for (int i=0; i<15; i++) {
+                org.apache.poi.ss.usermodel.Row r = sheet.getRow(i);
+                if(r != null) {
+                    System.out.print("ROW " + i + ": ");
+                    for (int c=0; c<6; c++) {
+                        org.apache.poi.ss.usermodel.Cell cell = r.getCell(c);
+                        if(cell != null) {
+                            if(cell.getCellType() == org.apache.poi.ss.usermodel.CellType.STRING) System.out.print("[" + cell.getStringCellValue() + "] ");
+                            else if(cell.getCellType() == org.apache.poi.ss.usermodel.CellType.NUMERIC) System.out.print("[" + cell.getNumericCellValue() + "] ");
+                        }
+                    }
+                    System.out.println();
+                }
+            }
             
             boolean foundDebit = false;
             for(ImportedTransactionRaw tx : result) {

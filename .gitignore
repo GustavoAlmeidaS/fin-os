@@ -37,3 +37,9 @@ build/
 ### Local config (contains DB credentials) ###
 application-local.properties
 **/application-local.properties
+
+### Sensitive Data ###
+docs/*.csv
+docs/*.xls
+docs/*.xlsx
+

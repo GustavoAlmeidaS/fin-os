@@ -13,5 +13,7 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
 
     Optional<Category> findByIdAndUser(Long id, User user);
 
+    Optional<Category> findFirstByUserAndNameIgnoreCase(User user, String name);
+
     boolean existsByUserAndNameAndType(User user, String name, CategoryType type);
 }
